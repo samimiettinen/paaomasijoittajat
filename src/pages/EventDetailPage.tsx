@@ -466,6 +466,7 @@ export default function EventDetailPage() {
             <div className="max-h-[200px] overflow-y-auto space-y-2">
               {participants.map((participant) => {
                 const hasEmail = !!participant.member?.email;
+                const alreadySent = participant.status !== 'invited';
                 return (
                   <label
                     key={participant.id}
@@ -486,9 +487,14 @@ export default function EventDetailPage() {
                         {hasEmail ? participant.member?.email : 'Ei sähköpostia'}
                       </p>
                     </div>
-                    <Badge variant={statusVariants[participant.status]} className="text-xs">
-                      {statusLabels[participant.status]}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {alreadySent && (
+                        <span className="text-xs text-muted-foreground">(uudelleenlähetys)</span>
+                      )}
+                      <Badge variant={statusVariants[participant.status]} className="text-xs">
+                        {statusLabels[participant.status]}
+                      </Badge>
+                    </div>
                   </label>
                 );
               })}
