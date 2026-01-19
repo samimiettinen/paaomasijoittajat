@@ -130,13 +130,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Background verification to update stale cache
+  const verifyAndRefreshCache = useCallback(async (email: string, cached: CachedAuthData) => {
+    try {
+      const { data: member } = await supabase
+        .from('members')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (!member) {
+        if (cached.memberId !== null) {
+          clearCachedData();
+          setMemberId(null);
+          setAdminLevel(null);
+        }
+        return;
+      }
+
+      const { data: adminRecord } = await supabase
+        .from('admins')
+        .select('admin_level')
+        .eq('member_id', member.id)
+        .maybeSingle();
+
+      const newLevel: AdminLevel = adminRecord?.admin_level as AdminLevel ?? null;
+
+      // Update if different from cache
+      if (cached.adminLevel !== newLevel || cached.memberId !== member.id) {
+        setMemberId(member.id);
+        setAdminLevel(newLevel);
+        setCachedData(email, member.id, newLevel);
+      }
+    } catch {
+      // Ignore verification errors
+    }
+  }, []);
+
   // Fetch member and admin data with caching
-  const fetchUserData = useCallback(async (email: string, isSignIn: boolean) => {
-    // Check cache first
+  const fetchUserData = useCallback(async (email: string, isSignIn: boolean, forceRefresh = false) => {
+    // Check cache first (skip if forceRefresh)
     const cached = getCachedData(email);
-    if (cached && !isSignIn) {
+    if (cached && !isSignIn && !forceRefresh) {
       setMemberId(cached.memberId);
       setAdminLevel(cached.adminLevel);
+      // But still verify in background and refresh if needed
+      verifyAndRefreshCache(email, cached);
       return;
     }
 
@@ -188,7 +227,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setMemberId(null);
       setAdminLevel(null);
     }
-  }, [trackVisit, prefetchDashboardData]);
+  }, [trackVisit, prefetchDashboardData, verifyAndRefreshCache]);
 
   useEffect(() => {
     let loadingTimer: NodeJS.Timeout;
