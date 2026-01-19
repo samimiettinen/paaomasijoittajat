@@ -1,6 +1,8 @@
-import { Users, Calendar, UserCheck, TrendingUp } from 'lucide-react';
+import { Users, Calendar, UserCheck, TrendingUp, LogIn } from 'lucide-react';
 import { useMembers } from '@/hooks/useMembers';
 import { useEvents } from '@/hooks/useEvents';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { StatsCard } from '@/components/StatsCard';
 import { EventCard } from '@/components/EventCard';
 import { WhatsAppGroupCard } from '@/components/WhatsAppGroupCard';
@@ -12,6 +14,18 @@ export default function Dashboard() {
   const { data: events = [] } = useEvents();
   const { isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+
+  // Fetch total visit count
+  const { data: totalVisits = 0 } = useQuery({
+    queryKey: ['total-visits'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('member_visits')
+        .select('*', { count: 'exact', head: true });
+      if (error) throw error;
+      return count || 0;
+    },
+  });
 
   const activeMembers = members.filter(m => m.membership_status === 'active').length;
   const upcomingEvents = events.filter(e => new Date(e.event_date) >= new Date() && e.status === 'published');
@@ -26,7 +40,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatsCard
           title="Jäseniä yhteensä"
           value={members.length}
@@ -46,6 +60,11 @@ export default function Dashboard() {
           title="Ylläpitäjiä"
           value={admins}
           icon={TrendingUp}
+        />
+        <StatsCard
+          title="Kirjautumisia"
+          value={totalVisits}
+          icon={LogIn}
         />
       </div>
 
