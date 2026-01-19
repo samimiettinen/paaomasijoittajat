@@ -12,6 +12,7 @@ const corsHeaders = {
 interface EventInvitationRequest {
   eventId: string;
   memberIds: string[];
+  senderMemberId?: string;
 }
 
 interface Event {
@@ -44,7 +45,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { eventId, memberIds }: EventInvitationRequest = await req.json();
+    const { eventId, memberIds, senderMemberId }: EventInvitationRequest = await req.json();
 
     // Fetch event details
     const { data: event, error: eventError } = await supabase
@@ -177,6 +178,14 @@ const handler = async (req: Request): Promise<Response> => {
           const errorData = await res.json();
           throw new Error(errorData.message || "Failed to send email");
         }
+
+        // Log email send to database
+        await supabase.from("email_sends").insert({
+          event_id: eventId,
+          member_id: member.id,
+          email_address: member.email,
+          sent_by_member_id: senderMemberId || null,
+        });
 
         results.push({ memberId: member.id, success: true });
       } catch (emailError: any) {

@@ -4,6 +4,8 @@ import { format } from 'date-fns';
 import { fi } from 'date-fns/locale';
 import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2, Link, Copy, FileText } from 'lucide-react';
 import { useEvent, useEventParticipants, useUpdateEvent, useDeleteEvent, useInviteMembers, useUpdateParticipantStatus } from '@/hooks/useEvents';
+import { useEmailSends } from '@/hooks/useEmailSends';
+import { useAuth } from '@/contexts/AuthContext';
 import { useMembers } from '@/hooks/useMembers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,8 +49,10 @@ export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: event, isLoading: eventLoading } = useEvent(id || '');
-  const { data: participants = [] } = useEventParticipants(id || '');
+  const { data: participants = [], refetch: refetchParticipants } = useEventParticipants(id || '');
   const { data: allMembers = [] } = useMembers();
+  const { data: emailSends = [], refetch: refetchEmailSends } = useEmailSends(id || '');
+  const { memberId } = useAuth();
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
   const inviteMembers = useInviteMembers();
@@ -125,19 +129,29 @@ export default function EventDetailPage() {
     setSendingEmails(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-event-invitation', {
-        body: { eventId: event.id, memberIds }
+        body: { eventId: event.id, memberIds, senderMemberId: memberId }
       });
 
       if (error) throw error;
 
       toast.success(`Sähköpostit lähetetty: ${data.message}`);
       setSelectedEmailRecipients([]);
+      setEmailPreviewOpen(false);
+      // Refresh email sends to show updated history
+      refetchEmailSends();
     } catch (error: any) {
       console.error('Error sending emails:', error);
       toast.error('Sähköpostien lähetys epäonnistui');
     } finally {
       setSendingEmails(false);
     }
+  };
+
+  // Helper to get last email send date for a member
+  const getLastEmailSendDate = (memberIdToCheck: string) => {
+    const sends = emailSends.filter(s => s.member_id === memberIdToCheck);
+    if (sends.length === 0) return null;
+    return new Date(sends[0].sent_at);
   };
 
   const openEmailPreview = () => {
@@ -466,7 +480,8 @@ export default function EventDetailPage() {
             <div className="max-h-[300px] overflow-y-auto space-y-2">
               {participants.map((participant) => {
                 const hasEmail = !!participant.member?.email;
-                const alreadySent = participant.status !== 'invited';
+                const lastSendDate = getLastEmailSendDate(participant.member_id);
+                const hasSentEmail = !!lastSendDate;
                 return (
                   <label
                     key={participant.id}
@@ -486,10 +501,15 @@ export default function EventDetailPage() {
                       <p className="text-sm text-muted-foreground truncate">
                         {hasEmail ? participant.member?.email : 'Ei sähköpostia'}
                       </p>
+                      {hasSentEmail && (
+                        <p className="text-xs text-muted-foreground">
+                          Lähetetty: {format(lastSendDate, 'd.M.yyyy HH:mm', { locale: fi })}
+                        </p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      {alreadySent && (
-                        <span className="text-xs text-muted-foreground">(uudelleenlähetys)</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {hasSentEmail && (
+                        <span className="text-xs text-amber-600 dark:text-amber-400">(uudelleenlähetys)</span>
                       )}
                       <Badge variant={statusVariants[participant.status]} className="text-xs">
                         {statusLabels[participant.status]}
