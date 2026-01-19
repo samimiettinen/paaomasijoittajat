@@ -1,5 +1,5 @@
-import { Outlet, NavLink } from 'react-router-dom';
-import { Home, Users, Calendar, Menu, X, LogOut, User, Shield } from 'lucide-react';
+import { Outlet, NavLink, Link } from 'react-router-dom';
+import { Home, Users, Calendar, Menu, X, LogOut, User, Shield, UserCog } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -20,6 +20,7 @@ export function AppLayout() {
         { name: 'Etusivu', href: '/', icon: Home },
         { name: 'Jäsenet', href: '/members', icon: Users },
         { name: 'Tapahtumat', href: '/events', icon: Calendar },
+        { name: 'Käyttäjähallinta', href: '/vibe-coders', icon: UserCog },
       ]
     : [
         { name: 'Omat tiedot', href: '/profile', icon: User },
@@ -177,7 +178,9 @@ export function AppLayout() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
             <p>© {new Date().getFullYear()} Vibe Coding Society. Kaikki oikeudet pidätetään.</p>
             <div className="flex items-center gap-4">
-              <span>Tietosuojaseloste</span>
+              <Link to="/privacy" className="hover:text-foreground transition-colors">
+                Tietosuojaseloste
+              </Link>
               <span>•</span>
               <span>GDPR</span>
               <span>•</span>
