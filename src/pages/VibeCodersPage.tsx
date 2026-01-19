@@ -63,6 +63,7 @@ export default function VibeCodersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [adminToDelete, setAdminToDelete] = useState<AdminWithMember | null>(null);
+  const [resendingCredentials, setResendingCredentials] = useState<string | null>(null);
 
   const [sendingEmail, setSendingEmail] = useState(false);
   
@@ -252,6 +253,39 @@ export default function VibeCodersPage() {
     },
   });
 
+  // Resend credentials function
+  const handleResendCredentials = async (admin: AdminWithMember) => {
+    if (!admin.member?.email) {
+      toast.error('Käyttäjällä ei ole sähköpostiosoitetta');
+      return;
+    }
+
+    setResendingCredentials(admin.id);
+    const newPassword = generatePassword();
+
+    try {
+      const response = await supabase.functions.invoke('send-vibecoder-welcome', {
+        body: {
+          memberId: admin.member_id,
+          adminLevel: admin.admin_level,
+          tempPassword: newPassword,
+        },
+      });
+
+      if (response.error) {
+        toast.error(`Tunnusten lähetys epäonnistui: ${response.error.message}`);
+      } else {
+        toast.success('Uudet tunnukset lähetetty sähköpostiin');
+        // Refresh auth status
+        queryClient.invalidateQueries({ queryKey: ['auth-status'] });
+      }
+    } catch (error: any) {
+      toast.error(`Tunnusten lähetys epäonnistui: ${error.message}`);
+    } finally {
+      setResendingCredentials(null);
+    }
+  };
+
   const onSubmit = (data: VibeCoderFormData) => {
     createAdmin.mutate(data);
   };
@@ -415,14 +449,41 @@ export default function VibeCodersPage() {
                   {new Date(admin.created_at).toLocaleDateString('fi-FI')}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => { setAdminToDelete(admin); setDeleteConfirmOpen(true); }}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    {/* Show resend button for users without auth accounts */}
+                    {admin.member?.email && !authStatus[admin.member.email.toLowerCase()] && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleResendCredentials(admin)}
+                              disabled={resendingCredentials === admin.id}
+                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950"
+                            >
+                              {resendingCredentials === admin.id ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Mail className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Lähetä kirjautumistunnukset</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => { setAdminToDelete(admin); setDeleteConfirmOpen(true); }}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
