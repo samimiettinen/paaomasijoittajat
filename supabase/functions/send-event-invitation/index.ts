@@ -66,6 +66,28 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Failed to fetch members");
     }
 
+    // Fetch invitation tokens for all participants
+    const { data: participants, error: participantsError } = await supabase
+      .from("event_participants")
+      .select("member_id, invitation_token")
+      .eq("event_id", eventId)
+      .in("member_id", memberIds);
+
+    if (participantsError) {
+      throw new Error("Failed to fetch participant tokens");
+    }
+
+    // Create a map of member_id to invitation_token
+    const tokenMap = new Map<string, string>();
+    for (const p of participants || []) {
+      if (p.invitation_token) {
+        tokenMap.set(p.member_id, p.invitation_token);
+      }
+    }
+
+    // Get the base URL for RSVP links
+    const baseUrl = "https://paaomasijoittajat.lovable.app";
+
     const results: { memberId: string; success: boolean; error?: string }[] = [];
 
     for (const member of members as Member[]) {
@@ -90,6 +112,9 @@ const handler = async (req: Request): Promise<Response> => {
           .filter(Boolean)
           .join(", ");
 
+        const invitationToken = tokenMap.get(member.id);
+        const rsvpUrl = invitationToken ? `${baseUrl}/rsvp?token=${invitationToken}` : null;
+
         const emailHtml = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h1 style="color: #1a365d;">Hei ${member.first_name}!</h1>
@@ -105,7 +130,20 @@ const handler = async (req: Request): Promise<Response> => {
               ${event.description ? `<p><strong>📝 Kuvaus:</strong> ${event.description}</p>` : ""}
             </div>
             
+            ${rsvpUrl ? `
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${rsvpUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                Ilmoittaudu tapahtumaan
+              </a>
+            </div>
+            
+            <p style="text-align: center; color: #718096; font-size: 14px;">
+              Tai kopioi tämä linkki selaimeen:<br>
+              <a href="${rsvpUrl}" style="color: #2563eb;">${rsvpUrl}</a>
+            </p>
+            ` : `
             <p>Vahvista osallistumisesi vastaamalla tähän kutsuun.</p>
+            `}
             
             <p style="color: #718096; font-size: 14px; margin-top: 40px;">
               Ystävällisin terveisin,<br>
