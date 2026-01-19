@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Trash2, UserPlus, Shield, Mail } from 'lucide-react';
+import { Plus, Search, Trash2, UserPlus, Shield, Mail, RefreshCw } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,10 +20,23 @@ import type { Database } from '@/integrations/supabase/types';
 
 type AdminLevel = Database['public']['Enums']['admin_level'];
 
+// Generate a random secure password
+const generatePassword = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const symbols = '!@#$%&*';
+  let password = '';
+  for (let i = 0; i < 10; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  password += symbols.charAt(Math.floor(Math.random() * symbols.length));
+  return password;
+};
+
 const vibeCoderSchema = z.object({
   member_id: z.string().min(1, 'Valitse jäsen'),
   admin_level: z.enum(['vibe_coder', 'regular', 'super']),
   send_email: z.boolean().default(true),
+  auto_create_account: z.boolean().default(true),
   temp_password: z.string().min(8, 'Salasanan tulee olla vähintään 8 merkkiä').optional().or(z.literal('')),
 });
 
@@ -58,14 +71,20 @@ export default function VibeCodersPage() {
       member_id: '',
       admin_level: 'vibe_coder',
       send_email: true,
-      temp_password: '',
+      auto_create_account: true,
+      temp_password: generatePassword(),
     },
   });
 
   const selectedMemberId = watch('member_id');
   const selectedAdminLevel = watch('admin_level');
   const sendEmail = watch('send_email');
+  const autoCreateAccount = watch('auto_create_account');
   const tempPassword = watch('temp_password');
+
+  const regeneratePassword = () => {
+    setValue('temp_password', generatePassword());
+  };
 
   // Fetch all admins with member info
   const { data: admins = [], isLoading } = useQuery({
@@ -135,7 +154,7 @@ export default function VibeCodersPage() {
             body: {
               memberId: data.member_id,
               adminLevel: data.admin_level,
-              tempPassword: data.temp_password || undefined,
+              tempPassword: data.auto_create_account ? data.temp_password : undefined,
             },
           });
           
@@ -154,7 +173,13 @@ export default function VibeCodersPage() {
       }
       
       setDialogOpen(false);
-      reset();
+      reset({
+        member_id: '',
+        admin_level: 'vibe_coder',
+        send_email: true,
+        auto_create_account: true,
+        temp_password: generatePassword(),
+      });
     },
     onError: (error: Error) => {
       toast.error(`Virhe: ${error.message}`);
@@ -404,19 +429,47 @@ export default function VibeCodersPage() {
             </div>
 
             {sendEmail && (
-              <div className="space-y-2">
-                <Label>Väliaikainen salasana (valinnainen)</Label>
-                <Input
-                  type="text"
-                  placeholder="Jätä tyhjäksi, jos käyttäjällä on jo tili"
-                  {...register('temp_password')}
-                />
-                {errors.temp_password && (
-                  <p className="text-sm text-destructive">{errors.temp_password.message}</p>
+              <div className="space-y-4 pt-2 border-t">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="auto_create_account"
+                    checked={autoCreateAccount}
+                    onChange={(e) => setValue('auto_create_account', e.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <Label htmlFor="auto_create_account" className="text-sm font-normal cursor-pointer">
+                    Luo käyttäjätili automaattisesti (suositeltu)
+                  </Label>
+                </div>
+
+                {autoCreateAccount && (
+                  <div className="space-y-2">
+                    <Label>Väliaikainen salasana</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        {...register('temp_password')}
+                        className="font-mono"
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="icon"
+                        onClick={regeneratePassword}
+                        title="Luo uusi salasana"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {errors.temp_password && (
+                      <p className="text-sm text-destructive">{errors.temp_password.message}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Käyttäjälle luodaan tili tällä salasanalla. He saavat ohjeet vaihtaa salasanan ensimmäisellä kirjautumisella.
+                    </p>
+                  </div>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Jos annat salasanan, käyttäjälle luodaan tili tai päivitetään olemassa oleva salasana.
-                </p>
               </div>
             )}
 
