@@ -3,11 +3,14 @@ import { useMembers } from '@/hooks/useMembers';
 import { useEvents } from '@/hooks/useEvents';
 import { StatsCard } from '@/components/StatsCard';
 import { EventCard } from '@/components/EventCard';
+import { WhatsAppGroupCard } from '@/components/WhatsAppGroupCard';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Dashboard() {
   const { data: members = [] } = useMembers();
   const { data: events = [] } = useEvents();
+  const { isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
 
   const activeMembers = members.filter(m => m.membership_status === 'active').length;
@@ -46,19 +49,29 @@ export default function Dashboard() {
         />
       </div>
 
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Tulevat tapahtumat</h2>
-        {upcomingEvents.length === 0 ? (
-          <p className="text-muted-foreground">Ei tulevia tapahtumia.</p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {upcomingEvents.slice(0, 3).map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onClick={() => navigate(`/events/${event.id}`)}
-              />
-            ))}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <h2 className="text-lg font-semibold mb-4">Tulevat tapahtumat</h2>
+          {upcomingEvents.length === 0 ? (
+            <p className="text-muted-foreground">Ei tulevia tapahtumia.</p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {upcomingEvents.slice(0, 4).map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onClick={() => navigate(`/events/${event.id}`)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Admin tools sidebar */}
+        {(isAdmin || isSuperAdmin) && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Hallintatyökalut</h2>
+            <WhatsAppGroupCard />
           </div>
         )}
       </div>

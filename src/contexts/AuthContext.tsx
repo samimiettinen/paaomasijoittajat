@@ -30,6 +30,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isSuperAdmin = adminLevel === 'super';
   const isVibeCoder = adminLevel === 'vibe_coder';
 
+  // Track login visit
+  const trackVisit = async (currentMemberId: string) => {
+    try {
+      await supabase.from('member_visits').insert({
+        member_id: currentMemberId,
+        user_agent: navigator.userAgent,
+      });
+    } catch (error) {
+      console.error('Failed to track visit:', error);
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -47,6 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           if (member) {
             setMemberId(member.id);
+            
+            // Track visit on login
+            if (event === 'SIGNED_IN') {
+              trackVisit(member.id);
+            }
             
             // Check admin level from admins table
             const { data: adminRecord } = await supabase
