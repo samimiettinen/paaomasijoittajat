@@ -233,6 +233,7 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: { member_phone: string }; Returns: boolean }
+      is_current_user_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       admin_level: "super" | "regular" | "vibe_coder"
