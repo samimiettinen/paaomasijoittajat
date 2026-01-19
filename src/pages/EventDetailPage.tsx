@@ -482,8 +482,8 @@ export default function EventDetailPage() {
 
       {/* Email Preview Dialog */}
       <Dialog open={emailPreviewOpen} onOpenChange={setEmailPreviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Sähköpostikutsut</DialogTitle>
             <DialogDescription>
               Valitse vastaanottajat ja tarkista sähköpostin sisältö ennen lähettämistä.
@@ -491,7 +491,7 @@ export default function EventDetailPage() {
           </DialogHeader>
           
           {/* Recipients Selection */}
-          <div className="border rounded-lg p-4 space-y-3">
+          <div className="border rounded-lg p-4 space-y-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <h4 className="font-medium">Vastaanottajat ({selectedEmailRecipients.length}/{participants.filter(p => p.member?.email).length})</h4>
               <div className="flex gap-2">
@@ -503,7 +503,7 @@ export default function EventDetailPage() {
                 </Button>
               </div>
             </div>
-            <div className="max-h-[300px] overflow-y-auto space-y-2">
+            <div className="max-h-[40vh] overflow-y-auto space-y-2 border rounded-md p-2 bg-muted/30">
               {participants.map((participant) => {
                 const hasEmail = !!participant.member?.email;
                 const lastSendDate = getLastEmailSendDate(participant.member_id);
