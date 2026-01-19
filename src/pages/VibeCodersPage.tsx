@@ -450,8 +450,8 @@ export default function VibeCodersPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    {/* Show resend button for users without auth accounts */}
-                    {admin.member?.email && !authStatus[admin.member.email.toLowerCase()] && (
+                    {/* Show resend button for users without auth accounts - allow for ANY admin role */}
+                    {admin.member?.email && authStatus[admin.member.email.toLowerCase()] === false && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
