@@ -42,7 +42,14 @@ export function useEventParticipants(eventId: string) {
       const { data, error } = await supabase
         .from('event_participants')
         .select(`
-          *,
+          id,
+          event_id,
+          member_id,
+          status,
+          invited_at,
+          calendar_invite_sent,
+          invitation_token,
+          early_arrival,
           member:members(*)
         `)
         .eq('event_id', eventId);
