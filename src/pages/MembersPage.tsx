@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Upload, Download, MessageCircle, ExternalLink, Eye, Trash2, Pencil } from 'lucide-react';
+import { Plus, Search, Upload, Download, MessageCircle, ExternalLink, Eye, Trash2, Pencil, FileSpreadsheet } from 'lucide-react';
 import { useMembers, useCreateMember, useUpdateMember, useDeleteMember, useBulkImportMembers } from '@/hooks/useMembers';
 import { useEvents } from '@/hooks/useEvents';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Member, MemberFormData } from '@/lib/types';
 import { getWhatsAppLink } from '@/lib/whatsapp';
 import { exportMembersToCSV, downloadCSV, parseCSV } from '@/lib/csv';
+import { exportMembersToExcel, parseExcel } from '@/lib/excel';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -124,18 +125,43 @@ export default function MembersPage() {
     }
   };
 
-  const handleExport = () => { downloadCSV(exportMembersToCSV(members), 'jasenet.csv'); };
+  const handleExportCSV = () => { downloadCSV(exportMembersToCSV(members), 'jasenet.csv'); };
+  const handleExportExcel = () => { exportMembersToExcel(members); };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
       const content = ev.target?.result as string;
       const parsed = parseCSV(content);
-      if (parsed.length > 0) bulkImport.mutate(parsed);
+      if (parsed.length > 0) {
+        bulkImport.mutate(parsed, {
+          onSuccess: () => toast.success(`${parsed.length} jäsentä tuotu`),
+          onError: () => toast.error('Tuonti epäonnistui'),
+        });
+      }
     };
     reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = await parseExcel(file);
+      if (parsed.length > 0) {
+        bulkImport.mutate(parsed, {
+          onSuccess: () => toast.success(`${parsed.length} jäsentä tuotu`),
+          onError: () => toast.error('Tuonti epäonnistui'),
+        });
+      } else {
+        toast.error('Tiedostosta ei löytynyt jäseniä');
+      }
+    } catch {
+      toast.error('Excel-tiedoston lukeminen epäonnistui');
+    }
     e.target.value = '';
   };
 
@@ -146,11 +172,16 @@ export default function MembersPage() {
           <h1 className="text-2xl font-bold">Jäsenet</h1>
           <p className="text-muted-foreground">{members.length} jäsentä</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-2" />Vie CSV</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportCSV}><Download className="h-4 w-4 mr-2" />Vie CSV</Button>
+          <Button variant="outline" size="sm" onClick={handleExportExcel}><FileSpreadsheet className="h-4 w-4 mr-2" />Vie Excel</Button>
           <label>
             <Button variant="outline" size="sm" asChild><span><Upload className="h-4 w-4 mr-2" />Tuo CSV</span></Button>
-            <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
+            <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
+          </label>
+          <label>
+            <Button variant="outline" size="sm" asChild><span><FileSpreadsheet className="h-4 w-4 mr-2" />Tuo Excel</span></Button>
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
           </label>
           <Button size="sm" onClick={() => { setSelectedMember(null); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />Lisää jäsen</Button>
         </div>
