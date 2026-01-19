@@ -60,6 +60,7 @@ export default function EventDetailPage() {
   const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false);
   const [emailPreviewOpen, setEmailPreviewOpen] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
   const [sendingEmails, setSendingEmails] = useState(false);
 
   if (eventLoading || !event) {
@@ -118,8 +119,7 @@ export default function EventDetailPage() {
     toast.success('Kutsulinkki kopioitu leikepöydälle');
   };
 
-  const handleSendEmails = async () => {
-    const memberIds = participants.map(p => p.member_id);
+  const handleSendEmails = async (memberIds: string[]) => {
     if (memberIds.length === 0) return;
 
     setSendingEmails(true);
@@ -131,12 +131,41 @@ export default function EventDetailPage() {
       if (error) throw error;
 
       toast.success(`Sähköpostit lähetetty: ${data.message}`);
+      setSelectedEmailRecipients([]);
     } catch (error: any) {
       console.error('Error sending emails:', error);
       toast.error('Sähköpostien lähetys epäonnistui');
     } finally {
       setSendingEmails(false);
     }
+  };
+
+  const openEmailPreview = () => {
+    // Pre-select all participants with email
+    const participantsWithEmail = participants
+      .filter(p => p.member?.email)
+      .map(p => p.member_id);
+    setSelectedEmailRecipients(participantsWithEmail);
+    setEmailPreviewOpen(true);
+  };
+
+  const toggleEmailRecipient = (memberId: string) => {
+    setSelectedEmailRecipients(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(id => id !== memberId) 
+        : [...prev, memberId]
+    );
+  };
+
+  const selectAllEmailRecipients = () => {
+    const allWithEmail = participants
+      .filter(p => p.member?.email)
+      .map(p => p.member_id);
+    setSelectedEmailRecipients(allWithEmail);
+  };
+
+  const deselectAllEmailRecipients = () => {
+    setSelectedEmailRecipients([]);
   };
 
   return (
@@ -248,7 +277,7 @@ export default function EventDetailPage() {
           <div className="flex gap-2">
             {participants.length > 0 && (
               <>
-                <Button variant="outline" onClick={() => setEmailPreviewOpen(true)} disabled={sendingEmails}>
+                <Button variant="outline" onClick={openEmailPreview} disabled={sendingEmails}>
                   {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
                   Sähköposti
                 </Button>
@@ -413,14 +442,60 @@ export default function EventDetailPage() {
 
       {/* Email Preview Dialog */}
       <Dialog open={emailPreviewOpen} onOpenChange={setEmailPreviewOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Sähköpostikutsun esikatselu</DialogTitle>
             <DialogDescription>
-              Tarkista sähköpostin sisältö ennen lähettämistä {participants.length} vastaanottajalle.
+              Valitse vastaanottajat ja tarkista sähköpostin sisältö ennen lähettämistä.
             </DialogDescription>
           </DialogHeader>
           
+          {/* Recipients Selection */}
+          <div className="border rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium">Vastaanottajat ({selectedEmailRecipients.length}/{participants.filter(p => p.member?.email).length})</h4>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={selectAllEmailRecipients}>
+                  Valitse kaikki
+                </Button>
+                <Button variant="outline" size="sm" onClick={deselectAllEmailRecipients}>
+                  Tyhjennä
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-[200px] overflow-y-auto space-y-2">
+              {participants.map((participant) => {
+                const hasEmail = !!participant.member?.email;
+                return (
+                  <label
+                    key={participant.id}
+                    className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${
+                      hasEmail ? 'hover:bg-secondary' : 'opacity-50 cursor-not-allowed'
+                    } ${selectedEmailRecipients.includes(participant.member_id) ? 'bg-secondary border-primary' : ''}`}
+                  >
+                    <Checkbox
+                      checked={selectedEmailRecipients.includes(participant.member_id)}
+                      onCheckedChange={() => hasEmail && toggleEmailRecipient(participant.member_id)}
+                      disabled={!hasEmail}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">
+                        {participant.member?.first_name} {participant.member?.last_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {hasEmail ? participant.member?.email : 'Ei sähköpostia'}
+                      </p>
+                    </div>
+                    <Badge variant={statusVariants[participant.status]} className="text-xs">
+                      {statusLabels[participant.status]}
+                    </Badge>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Email Preview */}
           <div className="border rounded-lg p-6 bg-card space-y-4">
             <div className="border-b pb-4">
               <p className="text-sm text-muted-foreground">Aihe:</p>
@@ -472,12 +547,12 @@ export default function EventDetailPage() {
             <Button 
               onClick={() => {
                 setEmailPreviewOpen(false);
-                handleSendEmails();
+                handleSendEmails(selectedEmailRecipients);
               }}
-              disabled={sendingEmails}
+              disabled={sendingEmails || selectedEmailRecipients.length === 0}
             >
               {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
-              Lähetä {participants.length} sähköpostia
+              Lähetä {selectedEmailRecipients.length} sähköpostia
             </Button>
           </DialogFooter>
         </DialogContent>
