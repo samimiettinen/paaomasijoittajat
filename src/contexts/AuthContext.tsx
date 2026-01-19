@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 type AdminLevel = 'super' | 'regular' | 'vibe_coder' | null;
 
@@ -67,10 +68,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>(null);
   const [memberId, setMemberId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const isAdmin = adminLevel === 'super' || adminLevel === 'regular';
   const isSuperAdmin = adminLevel === 'super';
   const isVibeCoder = adminLevel === 'vibe_coder';
+
+  // Prefetch dashboard data in parallel
+  const prefetchDashboardData = useCallback(() => {
+    // Prefetch members
+    queryClient.prefetchQuery({
+      queryKey: ['members'],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('members')
+          .select('*')
+          .order('last_name');
+        if (error) throw error;
+        return data;
+      },
+      staleTime: 30000,
+    });
+
+    // Prefetch events
+    queryClient.prefetchQuery({
+      queryKey: ['events'],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .order('event_date', { ascending: false });
+        if (error) throw error;
+        return data;
+      },
+      staleTime: 30000,
+    });
+
+    // Prefetch visit count
+    queryClient.prefetchQuery({
+      queryKey: ['total-visits'],
+      queryFn: async () => {
+        const { count, error } = await supabase
+          .from('member_visits')
+          .select('*', { count: 'exact', head: true });
+        if (error) throw error;
+        return count || 0;
+      },
+      staleTime: 30000,
+    });
+  }, [queryClient]);
 
   // Track login visit (fire and forget)
   const trackVisit = useCallback(async (currentMemberId: string) => {
@@ -132,12 +178,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAdminLevel(level);
       setCachedData(email, member.id, level);
+
+      // Start prefetching dashboard data if user has access
+      if (level === 'super' || level === 'regular') {
+        prefetchDashboardData();
+      }
     } catch (error) {
       console.error('Failed to fetch user data:', error);
       setMemberId(null);
       setAdminLevel(null);
     }
-  }, [trackVisit]);
+  }, [trackVisit, prefetchDashboardData]);
 
   useEffect(() => {
     let loadingTimer: NodeJS.Timeout;
