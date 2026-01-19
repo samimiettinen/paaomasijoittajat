@@ -359,8 +359,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUserData]);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
+    const signInStart = Date.now();
+    authLog('signIn called');
+    
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    authLog(`signInWithPassword complete (error=${!!error})`, signInStart);
+    
+    if (error) {
+      return { error: error as Error | null };
+    }
+    
+    // If sign-in succeeded, eagerly fetch user data NOW before returning
+    // This ensures navigation happens only after we have permissions
+    if (data.user?.email) {
+      authLog('Eagerly fetching user data before returning');
+      await fetchUserData(data.user.email, true);
+      authLog('signIn complete - ready to navigate', signInStart);
+    }
+    
+    return { error: null };
   };
 
   const signOut = async () => {
