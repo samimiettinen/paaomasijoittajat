@@ -287,7 +287,7 @@ export default function EventDetailPage() {
               </>
             )}
             <Button onClick={() => setInviteDialogOpen(true)}>
-              <UserPlus className="h-4 w-4 mr-2" />Kutsu jäseniä
+              <UserPlus className="h-4 w-4 mr-2" />Kutsu uusia jäseniä
             </Button>
           </div>
         </CardHeader>
@@ -370,7 +370,7 @@ export default function EventDetailPage() {
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Kutsu jäseniä</DialogTitle>
+            <DialogTitle>Kutsu uusia jäseniä</DialogTitle>
             <DialogDescription>
               Valitse jäsenet, jotka haluat kutsua tapahtumaan.
             </DialogDescription>
@@ -444,7 +444,7 @@ export default function EventDetailPage() {
       <Dialog open={emailPreviewOpen} onOpenChange={setEmailPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Sähköpostikutsun esikatselu</DialogTitle>
+            <DialogTitle>Sähköpostikutsut</DialogTitle>
             <DialogDescription>
               Valitse vastaanottajat ja tarkista sähköpostin sisältö ennen lähettämistä.
             </DialogDescription>
@@ -463,7 +463,7 @@ export default function EventDetailPage() {
                 </Button>
               </div>
             </div>
-            <div className="max-h-[200px] overflow-y-auto space-y-2">
+            <div className="max-h-[300px] overflow-y-auto space-y-2">
               {participants.map((participant) => {
                 const hasEmail = !!participant.member?.email;
                 const alreadySent = participant.status !== 'invited';
