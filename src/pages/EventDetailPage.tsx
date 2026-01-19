@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fi } from 'date-fns/locale';
-import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2, Link, Copy } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2, Link, Copy, FileText } from 'lucide-react';
 import { useEvent, useEventParticipants, useUpdateEvent, useDeleteEvent, useInviteMembers, useUpdateParticipantStatus } from '@/hooks/useEvents';
 import { useMembers } from '@/hooks/useMembers';
 import { Button } from '@/components/ui/button';
@@ -194,6 +194,17 @@ export default function EventDetailPage() {
             {event.description && (
               <div className="pt-4 border-t">
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{event.description}</p>
+              </div>
+            )}
+            {event.invitation_text && (
+              <div className="pt-4 border-t">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Kutsuteksti</span>
+                </div>
+                <div className="bg-secondary/50 p-4 rounded-lg border-l-4 border-primary">
+                  <p className="text-sm whitespace-pre-wrap">{event.invitation_text}</p>
+                </div>
               </div>
             )}
           </CardContent>
