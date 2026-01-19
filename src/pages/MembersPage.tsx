@@ -1,16 +1,21 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Upload, Download, MessageCircle, ExternalLink, Eye } from 'lucide-react';
+import { Plus, Search, Upload, Download, MessageCircle, ExternalLink, Eye, Trash2, Pencil } from 'lucide-react';
 import { useMembers, useCreateMember, useUpdateMember, useDeleteMember, useBulkImportMembers } from '@/hooks/useMembers';
+import { useEvents } from '@/hooks/useEvents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MemberDialog } from '@/components/MemberDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Member, MemberFormData } from '@/lib/types';
 import { getWhatsAppLink } from '@/lib/whatsapp';
 import { exportMembersToCSV, downloadCSV, parseCSV } from '@/lib/csv';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const statusLabels: Record<Member['membership_status'], string> = {
   active: 'Aktiivinen', pending: 'Odottava', inactive: 'Ei-aktiivinen', removed: 'Poistettu',
@@ -19,6 +24,7 @@ const statusLabels: Record<Member['membership_status'], string> = {
 export default function MembersPage() {
   const navigate = useNavigate();
   const { data: members = [], isLoading } = useMembers();
+  const { data: events = [] } = useEvents();
   const createMember = useCreateMember();
   const updateMember = useUpdateMember();
   const deleteMember = useDeleteMember();
@@ -29,6 +35,17 @@ export default function MembersPage() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [memberToInvite, setMemberToInvite] = useState<Member | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const [isInviting, setIsInviting] = useState(false);
+
+  // Filter to upcoming/active events only
+  const upcomingEvents = useMemo(() => 
+    events.filter(e => e.status === 'published' || e.status === 'draft'), 
+    [events]
+  );
 
   const filteredMembers = useMemo(() => {
     if (!search) return members;
@@ -43,9 +60,67 @@ export default function MembersPage() {
 
   const handleSave = (data: MemberFormData) => {
     if (selectedMember) {
-      updateMember.mutate({ ...data, id: selectedMember.id }, { onSuccess: () => { setDialogOpen(false); setSelectedMember(null); } });
+      updateMember.mutate({ ...data, id: selectedMember.id }, { 
+        onSuccess: () => { 
+          setIsSaved(true);
+          setTimeout(() => {
+            setDialogOpen(false); 
+            setSelectedMember(null);
+            setIsSaved(false);
+          }, 1500);
+        } 
+      });
     } else {
-      createMember.mutate(data, { onSuccess: () => setDialogOpen(false) });
+      createMember.mutate(data, { 
+        onSuccess: () => {
+          setIsSaved(true);
+          setTimeout(() => {
+            setDialogOpen(false);
+            setIsSaved(false);
+          }, 1500);
+        }
+      });
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    const member = members.find(m => m.id === id);
+    if (member) {
+      setMemberToDelete(member);
+      setDialogOpen(false);
+      setDeleteConfirmOpen(true);
+    }
+  };
+
+  const handleInviteToEvent = (memberId: string) => {
+    const member = members.find(m => m.id === memberId);
+    if (member) {
+      setMemberToInvite(member);
+      setDialogOpen(false);
+      setInviteDialogOpen(true);
+    }
+  };
+
+  const handleSendInvitation = async () => {
+    if (!memberToInvite || !selectedEventId) return;
+    
+    setIsInviting(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-event-invitation', {
+        body: { eventId: selectedEventId, memberIds: [memberToInvite.id] }
+      });
+      
+      if (error) throw error;
+      
+      toast.success(`Kutsu lähetetty: ${memberToInvite.first_name} ${memberToInvite.last_name}`);
+      setInviteDialogOpen(false);
+      setMemberToInvite(null);
+      setSelectedEventId('');
+    } catch (err) {
+      toast.error('Kutsun lähetys epäonnistui');
+      console.error(err);
+    } finally {
+      setIsInviting(false);
     }
   };
 
@@ -119,20 +194,77 @@ export default function MembersPage() {
         </Table>
       </div>
 
-      <MemberDialog open={dialogOpen} onOpenChange={setDialogOpen} member={selectedMember} onSave={handleSave} isLoading={createMember.isPending || updateMember.isPending} />
+      <MemberDialog 
+        open={dialogOpen} 
+        onOpenChange={setDialogOpen} 
+        member={selectedMember} 
+        onSave={handleSave} 
+        onDelete={handleDelete}
+        onInviteToEvent={handleInviteToEvent}
+        isLoading={createMember.isPending || updateMember.isPending} 
+        isSaved={isSaved}
+      />
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Poista jäsen?</AlertDialogTitle>
-            <AlertDialogDescription>Haluatko varmasti poistaa jäsenen {memberToDelete?.first_name} {memberToDelete?.last_name}?</AlertDialogDescription>
+            <AlertDialogDescription>Haluatko varmasti poistaa jäsenen {memberToDelete?.first_name} {memberToDelete?.last_name}? Tätä toimintoa ei voi perua.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Peruuta</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (memberToDelete) deleteMember.mutate(memberToDelete.id); setDeleteConfirmOpen(false); }}>Poista</AlertDialogAction>
+            <AlertDialogAction 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { 
+                if (memberToDelete) deleteMember.mutate(memberToDelete.id); 
+                setDeleteConfirmOpen(false);
+                setSelectedMember(null);
+              }}
+            >
+              Poista
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kutsu tapahtumaan</DialogTitle>
+            <DialogDescription>
+              Lähetä kutsu jäsenelle {memberToInvite?.first_name} {memberToInvite?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Valitse tapahtuma</label>
+              <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Valitse tapahtuma..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {upcomingEvents.map(event => (
+                    <SelectItem key={event.id} value={event.id}>
+                      {event.title} ({new Date(event.event_date).toLocaleDateString('fi-FI')})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+                Peruuta
+              </Button>
+              <Button 
+                onClick={handleSendInvitation} 
+                disabled={!selectedEventId || isInviting}
+              >
+                {isInviting ? 'Lähetetään...' : 'Lähetä kutsu'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
