@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Trash2, Mail, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -44,7 +45,10 @@ interface MemberDialogProps {
   onOpenChange: (open: boolean) => void;
   member?: Member | null;
   onSave: (data: MemberFormData) => void;
+  onDelete?: (id: string) => void;
+  onInviteToEvent?: (memberId: string) => void;
   isLoading?: boolean;
+  isSaved?: boolean;
 }
 
 const statusOptions: { value: MembershipStatus; label: string }[] = [
@@ -54,8 +58,9 @@ const statusOptions: { value: MembershipStatus; label: string }[] = [
   { value: 'removed', label: 'Poistettu' },
 ];
 
-export function MemberDialog({ open, onOpenChange, member, onSave, isLoading }: MemberDialogProps) {
+export function MemberDialog({ open, onOpenChange, member, onSave, onDelete, onInviteToEvent, isLoading, isSaved }: MemberDialogProps) {
   const isEditing = !!member;
+  const [showSavedState, setShowSavedState] = useState(false);
 
   const {
     register,
@@ -95,12 +100,30 @@ export function MemberDialog({ open, onOpenChange, member, onSave, isLoading }: 
     },
   });
 
+  // Show saved state when isSaved becomes true
+  useEffect(() => {
+    if (isSaved) {
+      setShowSavedState(true);
+      const timer = setTimeout(() => setShowSavedState(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSaved]);
+
+  // Reset saved state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setShowSavedState(false);
+    }
+  }, [open]);
+
   const membershipStatus = watch('membership_status');
   const isAdmin = watch('is_admin');
 
   const onSubmit = (data: MemberFormData) => {
     onSave(data);
-    reset();
+    if (!isEditing) {
+      reset();
+    }
   };
 
   return (
@@ -263,13 +286,54 @@ export function MemberDialog({ open, onOpenChange, member, onSave, isLoading }: 
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Peruuta
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Tallennetaan...' : isEditing ? 'Tallenna' : 'Lisää jäsen'}
-            </Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex gap-2 mr-auto">
+              {isEditing && onDelete && (
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => onDelete(member.id)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Poista
+                </Button>
+              )}
+              {isEditing && onInviteToEvent && member.email && (
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => onInviteToEvent(member.id)}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Kutsu tapahtumaan
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Peruuta
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isLoading}
+                className={showSavedState ? 'bg-green-600 hover:bg-green-700' : ''}
+              >
+                {showSavedState ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Tallennettu!
+                  </>
+                ) : isLoading ? (
+                  'Tallennetaan...'
+                ) : isEditing ? (
+                  'Tallenna'
+                ) : (
+                  'Lisää jäsen'
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
