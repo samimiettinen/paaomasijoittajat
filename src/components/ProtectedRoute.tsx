@@ -8,10 +8,11 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { user, isLoading, isAdmin, isVibeCoder, adminLevel } = useAuth();
+  const { user, isLoading, permissionsLoading, isAdmin, isVibeCoder, adminLevel } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
+  // Show skeleton while session OR permissions are loading
+  if (isLoading || permissionsLoading) {
     return <DashboardSkeleton />;
   }
 

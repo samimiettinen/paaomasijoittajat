@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  permissionsLoading: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isVibeCoder: boolean;
@@ -90,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>(null);
   const [memberId, setMemberId] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -154,56 +156,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Background verification to update stale cache (non-blocking)
-  const verifyAndRefreshCache = useCallback((email: string, cached: CachedAuthData) => {
-    // Use setTimeout to make this truly non-blocking
-    setTimeout(async () => {
-      const verifyStart = Date.now();
-      authLog('Background verify started');
-      try {
-        const { data: member } = await supabase
-          .from('members')
-          .select('id')
-          .eq('email', email)
-          .maybeSingle();
-        authLog('Background verify: members query done', verifyStart);
+  // Background verification to update stale cache
+  const verifyAndRefreshCache = useCallback(async (email: string, cached: CachedAuthData) => {
+    const verifyStart = Date.now();
+    authLog('Background verify started');
+    setPermissionsLoading(true);
+    try {
+      const { data: member } = await supabase
+        .from('members')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+      authLog('Background verify: members query done', verifyStart);
 
-        if (!member) {
-          if (cached.memberId !== null) {
-            clearCachedData();
-            setMemberId(null);
-            setAdminLevel(null);
-          }
-          return;
+      if (!member) {
+        if (cached.memberId !== null) {
+          clearCachedData();
+          setMemberId(null);
+          setAdminLevel(null);
         }
-
-        const { data: adminRecord } = await supabase
-          .from('admins')
-          .select('admin_level')
-          .eq('member_id', member.id)
-          .maybeSingle();
-        authLog('Background verify: admins query done', verifyStart);
-
-        const newLevel: AdminLevel = adminRecord?.admin_level as AdminLevel ?? null;
-
-        // Update if different from cache
-        if (cached.adminLevel !== newLevel || cached.memberId !== member.id) {
-          authLog(`Background verify: updating cache (${cached.adminLevel} -> ${newLevel})`);
-          setMemberId(member.id);
-          setAdminLevel(newLevel);
-          setCachedData(email, member.id, newLevel);
-        }
-        authLog('Background verify complete', verifyStart);
-      } catch (err) {
-        authLog(`Background verify error: ${err}`);
+        setPermissionsLoading(false);
+        return;
       }
-    }, 100); // Small delay to not block initial render
+
+      const { data: adminRecord } = await supabase
+        .from('admins')
+        .select('admin_level')
+        .eq('member_id', member.id)
+        .maybeSingle();
+      authLog('Background verify: admins query done', verifyStart);
+
+      const newLevel: AdminLevel = adminRecord?.admin_level as AdminLevel ?? null;
+
+      // Update if different from cache
+      if (cached.adminLevel !== newLevel || cached.memberId !== member.id) {
+        authLog(`Background verify: updating cache (${cached.adminLevel} -> ${newLevel})`);
+        setMemberId(member.id);
+        setAdminLevel(newLevel);
+        setCachedData(email, member.id, newLevel);
+      }
+      authLog('Background verify complete', verifyStart);
+    } catch (err) {
+      authLog(`Background verify error: ${err}`);
+    } finally {
+      setPermissionsLoading(false);
+    }
   }, []);
 
   // Fetch member and admin data with caching
   const fetchUserData = useCallback(async (email: string, isSignIn: boolean, forceRefresh = false) => {
     const fetchStart = Date.now();
     authLog(`fetchUserData called (isSignIn=${isSignIn}, forceRefresh=${forceRefresh})`);
+    setPermissionsLoading(true);
     
     // Check cache first (skip if forceRefresh or signing in)
     const cached = getCachedData(email);
@@ -211,8 +215,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authLog('Using cached data - instant', fetchStart);
       setMemberId(cached.memberId);
       setAdminLevel(cached.adminLevel);
-      // Defer background verification to not block
-      verifyAndRefreshCache(email, cached);
+      // Run background verification (await to keep permissionsLoading accurate)
+      await verifyAndRefreshCache(email, cached);
       return;
     }
 
@@ -234,6 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setMemberId(null);
         setAdminLevel(null);
         setCachedData(email, null, null);
+        setPermissionsLoading(false);
         return;
       }
 
@@ -276,6 +281,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Failed to fetch user data:', error);
       setMemberId(null);
       setAdminLevel(null);
+    } finally {
+      setPermissionsLoading(false);
     }
   }, [trackVisit, prefetchDashboardData, verifyAndRefreshCache]);
 
@@ -441,7 +448,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{ 
       user, 
       session, 
-      isLoading, 
+      isLoading,
+      permissionsLoading,
       isAdmin, 
       isSuperAdmin,
       isVibeCoder,
