@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Trash2, UserPlus, Shield, Mail, RefreshCw } from 'lucide-react';
+import { Plus, Search, Trash2, UserPlus, Shield, Mail, RefreshCw, CheckCircle2, XCircle, KeyRound } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -115,6 +116,31 @@ export default function VibeCodersPage() {
     },
   });
 
+  // Fetch auth status for all admin emails
+  const { data: authStatus = {} } = useQuery({
+    queryKey: ['auth-status', admins.map(a => a.member?.email).filter(Boolean)],
+    queryFn: async () => {
+      const emails = admins
+        .map(a => a.member?.email)
+        .filter((e): e is string => !!e);
+      
+      if (emails.length === 0) return {};
+      
+      const response = await supabase.functions.invoke('check-auth-status', {
+        body: { emails },
+      });
+      
+      if (response.error) {
+        console.error('Failed to fetch auth status:', response.error);
+        return {};
+      }
+      
+      return response.data?.results || {};
+    },
+    enabled: admins.length > 0,
+    staleTime: 30000,
+  });
+
   // Members who are not yet admins
   const availableMembers = useMemo(() => {
     const adminMemberIds = new Set(admins.map(a => a.member_id));
@@ -162,6 +188,8 @@ export default function VibeCodersPage() {
             toast.error(`Käyttäjä lisätty, mutta sähköpostin lähetys epäonnistui: ${response.error.message}`);
           } else {
             toast.success('Käyttäjä lisätty ja tervetulosähköposti lähetetty');
+            // Refresh auth status
+            queryClient.invalidateQueries({ queryKey: ['auth-status'] });
           }
         } catch (emailError: any) {
           toast.error(`Käyttäjä lisätty, mutta sähköpostin lähetys epäonnistui: ${emailError.message}`);
@@ -228,7 +256,7 @@ export default function VibeCodersPage() {
     createAdmin.mutate(data);
   };
 
-  const getLevelBadge = (level: AdminLevel) => {
+      const getLevelBadge = (level: AdminLevel) => {
     switch (level) {
       case 'super':
         return <Badge className="bg-purple-600">Super Admin</Badge>;
@@ -237,6 +265,62 @@ export default function VibeCodersPage() {
       case 'vibe_coder':
         return <Badge variant="secondary">Vibe Coder</Badge>;
     }
+  };
+
+  const getAuthStatusBadge = (email: string | null) => {
+    if (!email) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                <XCircle className="h-3 w-3" />
+                Ei sähköpostia
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Käyttäjällä ei ole sähköpostiosoitetta</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    const hasAuth = authStatus[email.toLowerCase()];
+    
+    if (hasAuth) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <Badge variant="outline" className="gap-1 text-green-600 border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
+                <CheckCircle2 className="h-3 w-3" />
+                Tili aktiivinen
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Käyttäjä voi kirjautua sisään</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger>
+            <Badge variant="outline" className="gap-1 text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
+              <KeyRound className="h-3 w-3" />
+              Ei tiliä
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Käyttäjän täytyy rekisteröityä tai saada tunnukset</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
   };
 
   return (
@@ -298,6 +382,7 @@ export default function VibeCodersPage() {
             <TableRow>
               <TableHead>Nimi</TableHead>
               <TableHead>Sähköposti</TableHead>
+              <TableHead>Tili</TableHead>
               <TableHead>Rooli</TableHead>
               <TableHead>Lisätty</TableHead>
               <TableHead className="w-[100px]">Toiminnot</TableHead>
@@ -309,7 +394,8 @@ export default function VibeCodersPage() {
                 <TableCell className="font-medium">
                   {admin.member?.first_name} {admin.member?.last_name}
                 </TableCell>
-                <TableCell>{admin.member?.email || '-'}</TableCell>
+                <TableCell className="text-muted-foreground">{admin.member?.email || '-'}</TableCell>
+                <TableCell>{getAuthStatusBadge(admin.member?.email || null)}</TableCell>
                 <TableCell>
                   <Select
                     value={admin.admin_level}
@@ -342,7 +428,7 @@ export default function VibeCodersPage() {
             ))}
             {filteredAdmins.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   {isLoading ? 'Ladataan...' : 'Ei käyttäjiä'}
                 </TableCell>
               </TableRow>
