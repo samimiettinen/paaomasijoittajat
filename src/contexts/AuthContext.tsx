@@ -29,6 +29,7 @@ interface CachedAuthData {
 const AUTH_CACHE_KEY = 'auth_member_data';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const LOADING_TIMEOUT = 3000; // 3 seconds max loading
+const DB_QUERY_TIMEOUT = 5000; // 5 seconds max for DB queries
 const DEBUG_AUTH = true; // Enable auth performance logging
 
 // Performance logging helper
@@ -36,6 +37,17 @@ const authLog = (message: string, startTime?: number) => {
   if (!DEBUG_AUTH) return;
   const elapsed = startTime ? ` (${Date.now() - startTime}ms)` : '';
   console.log(`[Auth]${elapsed} ${message}`);
+};
+
+// Timeout wrapper for database queries
+const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => {
+      authLog(`Query timeout after ${ms}ms`);
+      resolve(fallback);
+    }, ms))
+  ]);
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -71,8 +83,8 @@ const clearCachedData = () => {
   }
 };
 
-// Track if signIn is handling the fetch (to prevent duplicate fetches)
-let signInHandlingFetch = false;
+// Track if signIn() initiated a login - onAuthStateChange should skip fetching for this
+let signInInProgress = false;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -206,12 +218,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     authLog('No cache - fetching from DB');
     try {
-      // Fetch member data
-      const { data: member } = await supabase
-        .from('members')
-        .select('id, is_admin')
-        .eq('email', email)
-        .maybeSingle();
+      // Fetch member data with timeout
+      const memberQuery = async () => {
+        return supabase.from('members').select('id, is_admin').eq('email', email).maybeSingle();
+      };
+      const memberResult = await withTimeout(
+        memberQuery(),
+        DB_QUERY_TIMEOUT,
+        { data: null, error: null, count: null, status: 408, statusText: 'Timeout' }
+      );
+      const member = memberResult.data;
       authLog('Members query complete', fetchStart);
 
       if (!member) {
@@ -223,17 +239,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setMemberId(member.id);
 
-      // Track visit on sign in
+      // Track visit on sign in (fire and forget - don't await)
       if (isSignIn) {
         trackVisit(member.id);
       }
 
-      // Fetch admin level
-      const { data: adminRecord } = await supabase
-        .from('admins')
-        .select('admin_level')
-        .eq('member_id', member.id)
-        .maybeSingle();
+      // Fetch admin level with timeout
+      const adminQuery = async () => {
+        return supabase.from('admins').select('admin_level').eq('member_id', member.id).maybeSingle();
+      };
+      const adminResult = await withTimeout(
+        adminQuery(),
+        DB_QUERY_TIMEOUT,
+        { data: null, error: null, count: null, status: 408, statusText: 'Timeout' }
+      );
+      const adminRecord = adminResult.data;
       authLog('Admins query complete', fetchStart);
 
       let level: AdminLevel = null;
@@ -292,23 +312,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user?.email) {
-          // For fresh sign-ins, skip if signIn is handling it
+          // For SIGNED_IN triggered by signIn(), skip - signIn() handles it
           if (event === 'SIGNED_IN') {
-            if (signInHandlingFetch) {
-              authLog('SIGNED_IN - skipping, signIn() is handling fetch');
-              setIsLoading(false);
-              return;
+            if (signInInProgress) {
+              authLog('SIGNED_IN - skipping, signIn() handles data fetch');
+            } else {
+              // Direct sign-in (e.g., from token refresh or external)
+              authLog('SIGNED_IN (external) - fetching data');
+              await fetchUserData(session.user.email, true);
             }
-            authLog('SIGNED_IN - fetching fresh data');
-            await fetchUserData(session.user.email, true);
           } else {
-            // For other events, try cache first
+            // For other events (TOKEN_REFRESHED, etc.), try cache first
             const cached = getCachedData(session.user.email);
             if (cached) {
               authLog('Using cache in onAuthStateChange');
               setMemberId(cached.memberId);
               setAdminLevel(cached.adminLevel);
-              // Background verify (non-blocking)
               verifyAndRefreshCache(session.user.email, cached);
             } else {
               authLog('No cache - fetching in onAuthStateChange');
@@ -370,33 +389,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const signInStart = Date.now();
     authLog('signIn called');
     
-    // Mark that signIn is handling the fetch
-    signInHandlingFetch = true;
+    // Mark that we're handling the sign-in flow
+    signInInProgress = true;
     
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    authLog(`signInWithPassword complete (error=${!!error})`, signInStart);
-    
-    if (error) {
-      signInHandlingFetch = false;
-      return { error: error as Error | null };
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      authLog(`signInWithPassword complete (error=${!!error})`, signInStart);
+      
+      if (error) {
+        signInInProgress = false;
+        return { error: error as Error | null };
+      }
+      
+      // Set session/user immediately
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.user);
+      }
+      
+      // Fetch user data before returning
+      if (data.user?.email) {
+        authLog('Fetching user data in signIn');
+        await fetchUserData(data.user.email, true);
+        authLog('signIn complete - ready to navigate', signInStart);
+      }
+      
+      setIsLoading(false);
+      return { error: null };
+    } finally {
+      // Always reset the flag
+      signInInProgress = false;
     }
-    
-    // Set session/user immediately
-    if (data.session) {
-      setSession(data.session);
-      setUser(data.user);
-    }
-    
-    // Fetch user data before returning (navigation happens after this)
-    if (data.user?.email) {
-      authLog('Fetching user data in signIn');
-      await fetchUserData(data.user.email, true);
-      authLog('signIn complete - ready to navigate', signInStart);
-    }
-    
-    signInHandlingFetch = false;
-    setIsLoading(false);
-    return { error: null };
   };
 
   const signOut = async () => {
