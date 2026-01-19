@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { fi } from 'date-fns/locale';
-import { ArrowLeft, MessageCircle, ExternalLink, Mail, Phone, Building2, Briefcase, Calendar, TrendingUp, UserCheck, UserX, Clock } from 'lucide-react';
+import { ArrowLeft, MessageCircle, ExternalLink, Mail, Phone, Building2, Briefcase, Calendar, TrendingUp, UserCheck, UserX, Clock, LogIn } from 'lucide-react';
 import { useMember } from '@/hooks/useMembers';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getWhatsAppLink } from '@/lib/whatsapp';
 import type { Event, ParticipantStatus } from '@/lib/types';
 
@@ -57,11 +58,29 @@ function useMemberEvents(memberId: string) {
   });
 }
 
+function useMemberVisits(memberId: string) {
+  return useQuery({
+    queryKey: ['member-visits', memberId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('member_visits')
+        .select('id, visited_at')
+        .eq('member_id', memberId)
+        .order('visited_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!memberId,
+  });
+}
+
 export default function MemberDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: member, isLoading: memberLoading } = useMember(id || '');
   const { data: events = [], isLoading: eventsLoading } = useMemberEvents(id || '');
+  const { data: visits = [] } = useMemberVisits(id || '');
 
   const stats = useMemo(() => {
     const total = events.length;
@@ -204,6 +223,47 @@ export default function MemberDetailPage() {
                 <div className="text-2xl font-bold">{stats.noShow}</div>
                 <div className="text-xs text-muted-foreground">Ei saapunut</div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Login Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Kirjautumisaktiviteetti</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <LogIn className="h-5 w-5 text-primary" />
+                  <span className="text-sm text-muted-foreground">Kirjautumisia yhteensä</span>
+                </div>
+                <span className="text-2xl font-bold">{visits.length}</span>
+              </div>
+              
+              {visits.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Viimeisimmät kirjautumiset:</p>
+                  <div className="space-y-1">
+                    <TooltipProvider>
+                      {visits.slice(0, 5).map((visit) => (
+                        <Tooltip key={visit.id}>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground cursor-default">
+                              <Clock className="h-3 w-3" />
+                              {format(parseISO(visit.visited_at), 'd.M.yyyy HH:mm', { locale: fi })}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{format(parseISO(visit.visited_at), 'EEEE d. MMMM yyyy, HH:mm:ss', { locale: fi })}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </TooltipProvider>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
