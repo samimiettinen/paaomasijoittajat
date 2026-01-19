@@ -131,51 +131,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Background verification to update stale cache
-  const verifyAndRefreshCache = useCallback(async (email: string, cached: CachedAuthData) => {
-    try {
-      const { data: member } = await supabase
-        .from('members')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
+  // Background verification to update stale cache (non-blocking)
+  const verifyAndRefreshCache = useCallback((email: string, cached: CachedAuthData) => {
+    // Use setTimeout to make this truly non-blocking
+    setTimeout(async () => {
+      try {
+        const { data: member } = await supabase
+          .from('members')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
 
-      if (!member) {
-        if (cached.memberId !== null) {
-          clearCachedData();
-          setMemberId(null);
-          setAdminLevel(null);
+        if (!member) {
+          if (cached.memberId !== null) {
+            clearCachedData();
+            setMemberId(null);
+            setAdminLevel(null);
+          }
+          return;
         }
-        return;
+
+        const { data: adminRecord } = await supabase
+          .from('admins')
+          .select('admin_level')
+          .eq('member_id', member.id)
+          .maybeSingle();
+
+        const newLevel: AdminLevel = adminRecord?.admin_level as AdminLevel ?? null;
+
+        // Update if different from cache
+        if (cached.adminLevel !== newLevel || cached.memberId !== member.id) {
+          setMemberId(member.id);
+          setAdminLevel(newLevel);
+          setCachedData(email, member.id, newLevel);
+        }
+      } catch {
+        // Ignore verification errors
       }
-
-      const { data: adminRecord } = await supabase
-        .from('admins')
-        .select('admin_level')
-        .eq('member_id', member.id)
-        .maybeSingle();
-
-      const newLevel: AdminLevel = adminRecord?.admin_level as AdminLevel ?? null;
-
-      // Update if different from cache
-      if (cached.adminLevel !== newLevel || cached.memberId !== member.id) {
-        setMemberId(member.id);
-        setAdminLevel(newLevel);
-        setCachedData(email, member.id, newLevel);
-      }
-    } catch {
-      // Ignore verification errors
-    }
+    }, 100); // Small delay to not block initial render
   }, []);
 
   // Fetch member and admin data with caching
   const fetchUserData = useCallback(async (email: string, isSignIn: boolean, forceRefresh = false) => {
-    // Check cache first (skip if forceRefresh)
+    // Check cache first (skip if forceRefresh or signing in)
     const cached = getCachedData(email);
     if (cached && !isSignIn && !forceRefresh) {
       setMemberId(cached.memberId);
       setAdminLevel(cached.adminLevel);
-      // But still verify in background and refresh if needed
+      // Defer background verification to not block
       verifyAndRefreshCache(email, cached);
       return;
     }
@@ -241,11 +244,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, LOADING_TIMEOUT);
 
+    // Track if initial session was handled via getSession
+    let initialSessionHandled = false;
+
+    // Get initial session FIRST (synchronous priority)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user?.email) {
+        // Use cached data immediately if available
+        const cached = getCachedData(session.user.email);
+        if (cached) {
+          setMemberId(cached.memberId);
+          setAdminLevel(cached.adminLevel);
+          initialSessionHandled = true;
+          setIsLoading(false);
+          // Defer background verification
+          verifyAndRefreshCache(session.user.email, cached);
+        }
+      } else {
+        setIsLoading(false);
+      }
+    });
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+
+        // Skip if initial session already handled with cache
+        if (event === 'INITIAL_SESSION' && initialSessionHandled) {
+          return;
+        }
 
         if (session?.user?.email) {
           await fetchUserData(session.user.email, event === 'SIGNED_IN');
@@ -260,24 +292,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     );
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user?.email) {
-        // Use cached data immediately if available
-        const cached = getCachedData(session.user.email);
-        if (cached) {
-          setMemberId(cached.memberId);
-          setAdminLevel(cached.adminLevel);
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false);
-      }
-    });
 
     return () => {
       clearTimeout(loadingTimer);
