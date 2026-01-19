@@ -43,6 +43,55 @@ export type Database = {
           },
         ]
       }
+      email_sends: {
+        Row: {
+          email_address: string
+          event_id: string
+          id: string
+          member_id: string
+          sent_at: string
+          sent_by_member_id: string | null
+        }
+        Insert: {
+          email_address: string
+          event_id: string
+          id?: string
+          member_id: string
+          sent_at?: string
+          sent_by_member_id?: string | null
+        }
+        Update: {
+          email_address?: string
+          event_id?: string
+          id?: string
+          member_id?: string
+          sent_at?: string
+          sent_by_member_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_sends_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sends_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sends_sent_by_member_id_fkey"
+            columns: ["sent_by_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_participants: {
         Row: {
           calendar_invite_sent: boolean
