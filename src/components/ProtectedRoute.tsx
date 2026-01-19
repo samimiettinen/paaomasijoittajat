@@ -27,9 +27,9 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="text-center space-y-4 max-w-md">
-          <h1 className="text-2xl font-bold text-destructive">Pääsy estetty</h1>
+          <h1 className="text-2xl font-bold text-destructive">Päivitä verkkoselain</h1>
           <p className="text-muted-foreground">
-            Sinulla ei ole tarvittavia oikeuksia. Ota yhteyttä järjestelmän ylläpitäjään.
+            Yhteyden vahvistus katkennut
           </p>
         </div>
       </div>
