@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fi } from 'date-fns/locale';
-import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2, Link, Copy } from 'lucide-react';
 import { useEvent, useEventParticipants, useUpdateEvent, useDeleteEvent, useInviteMembers, useUpdateParticipantStatus } from '@/hooks/useEvents';
 import { useMembers } from '@/hooks/useMembers';
 import { Button } from '@/components/ui/button';
@@ -108,6 +108,13 @@ export default function EventDetailPage() {
 
   const toggleMemberSelection = (memberId: string) => {
     setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
+  };
+
+  const copyInvitationLink = async (invitationToken: string) => {
+    const baseUrl = window.location.origin;
+    const invitationUrl = `${baseUrl}/rsvp?token=${invitationToken}`;
+    await navigator.clipboard.writeText(invitationUrl);
+    toast.success('Kutsulinkki kopioitu leikepöydälle');
   };
 
   const handleSendEmails = async () => {
@@ -253,8 +260,10 @@ export default function EventDetailPage() {
                   <TableHead>Nimi</TableHead>
                   <TableHead>Puhelin</TableHead>
                   <TableHead>Organisaatio</TableHead>
+                  <TableHead>Aikaisin saapuminen</TableHead>
                   <TableHead>Tila</TableHead>
                   <TableHead className="w-[180px]">Muuta tilaa</TableHead>
+                  <TableHead className="w-[100px]">Kutsulinkki</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -265,6 +274,15 @@ export default function EventDetailPage() {
                     </TableCell>
                     <TableCell>{participant.member?.mobile_phone}</TableCell>
                     <TableCell>{participant.member?.organization || '-'}</TableCell>
+                    <TableCell>
+                      {participant.early_arrival === true ? (
+                        <Badge variant="outline" className="bg-primary/10">Kyllä</Badge>
+                      ) : participant.early_arrival === false ? (
+                        <span className="text-muted-foreground">Ei</span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={statusVariants[participant.status]}>
                         {statusLabels[participant.status]}
@@ -286,6 +304,18 @@ export default function EventDetailPage() {
                           <SelectItem value="no_show">Ei saapunut</SelectItem>
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      {participant.invitation_token && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => copyInvitationLink(participant.invitation_token!)}
+                          title="Kopioi kutsulinkki"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

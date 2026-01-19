@@ -46,24 +46,30 @@ export type Database = {
       event_participants: {
         Row: {
           calendar_invite_sent: boolean
+          early_arrival: boolean | null
           event_id: string
           id: string
+          invitation_token: string | null
           invited_at: string
           member_id: string
           status: Database["public"]["Enums"]["participant_status"]
         }
         Insert: {
           calendar_invite_sent?: boolean
+          early_arrival?: boolean | null
           event_id: string
           id?: string
+          invitation_token?: string | null
           invited_at?: string
           member_id: string
           status?: Database["public"]["Enums"]["participant_status"]
         }
         Update: {
           calendar_invite_sent?: boolean
+          early_arrival?: boolean | null
           event_id?: string
           id?: string
+          invitation_token?: string | null
           invited_at?: string
           member_id?: string
           status?: Database["public"]["Enums"]["participant_status"]

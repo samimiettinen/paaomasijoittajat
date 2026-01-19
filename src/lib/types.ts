@@ -44,6 +44,8 @@ export interface EventParticipant {
   status: ParticipantStatus;
   invited_at: string;
   calendar_invite_sent: boolean;
+  invitation_token?: string;
+  early_arrival?: boolean | null;
   member?: Member;
 }
 
