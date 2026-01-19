@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fi } from 'date-fns/locale';
-import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2 } from 'lucide-react';
 import { useEvent, useEventParticipants, useUpdateEvent, useDeleteEvent, useInviteMembers, useUpdateParticipantStatus } from '@/hooks/useEvents';
 import { useMembers } from '@/hooks/useMembers';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { EventDialog } from '@/components/EventDialog';
 import { BulkWhatsAppDialog } from '@/components/BulkWhatsAppDialog';
 import { downloadICS } from '@/lib/calendar';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import type { Event, EventFormData, ParticipantStatus } from '@/lib/types';
 
 const statusLabels: Record<ParticipantStatus, string> = {
@@ -57,6 +59,7 @@ export default function EventDetailPage() {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [sendingEmails, setSendingEmails] = useState(false);
 
   if (eventLoading || !event) {
     return (
@@ -105,6 +108,27 @@ export default function EventDetailPage() {
 
   const toggleMemberSelection = (memberId: string) => {
     setSelectedMembers(prev => prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]);
+  };
+
+  const handleSendEmails = async () => {
+    const memberIds = participants.map(p => p.member_id);
+    if (memberIds.length === 0) return;
+
+    setSendingEmails(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-event-invitation', {
+        body: { eventId: event.id, memberIds }
+      });
+
+      if (error) throw error;
+
+      toast.success(`Sähköpostit lähetetty: ${data.message}`);
+    } catch (error: any) {
+      console.error('Error sending emails:', error);
+      toast.error('Sähköpostien lähetys epäonnistui');
+    } finally {
+      setSendingEmails(false);
+    }
   };
 
   return (
@@ -204,9 +228,15 @@ export default function EventDetailPage() {
           <CardTitle>Osallistujalista</CardTitle>
           <div className="flex gap-2">
             {participants.length > 0 && (
-              <Button variant="outline" onClick={() => setWhatsappDialogOpen(true)}>
-                <MessageSquare className="h-4 w-4 mr-2" />WhatsApp
-              </Button>
+              <>
+                <Button variant="outline" onClick={handleSendEmails} disabled={sendingEmails}>
+                  {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+                  Sähköposti
+                </Button>
+                <Button variant="outline" onClick={() => setWhatsappDialogOpen(true)}>
+                  <MessageSquare className="h-4 w-4 mr-2" />WhatsApp
+                </Button>
+              </>
             )}
             <Button onClick={() => setInviteDialogOpen(true)}>
               <UserPlus className="h-4 w-4 mr-2" />Kutsu jäseniä
