@@ -99,6 +99,7 @@ export type Database = {
           end_time: string
           event_date: string
           id: string
+          invitation_text: string | null
           location_address: string | null
           location_city: string | null
           location_name: string | null
@@ -113,6 +114,7 @@ export type Database = {
           end_time: string
           event_date: string
           id?: string
+          invitation_text?: string | null
           location_address?: string | null
           location_city?: string | null
           location_name?: string | null
@@ -127,6 +129,7 @@ export type Database = {
           end_time?: string
           event_date?: string
           id?: string
+          invitation_text?: string | null
           location_address?: string | null
           location_city?: string | null
           location_name?: string | null

@@ -32,6 +32,7 @@ const eventSchema = z.object({
   location_address: z.string().optional(),
   location_city: z.string().optional(),
   status: z.enum(['draft', 'published', 'cancelled', 'completed']),
+  invitation_text: z.string().optional(),
 });
 
 interface EventDialogProps {
@@ -71,6 +72,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, isLoading }: Ev
       location_address: event.location_address || '',
       location_city: event.location_city || '',
       status: event.status,
+      invitation_text: event.invitation_text || '',
     } : {
       title: '',
       description: '',
@@ -81,6 +83,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, isLoading }: Ev
       location_address: '',
       location_city: '',
       status: 'draft',
+      invitation_text: '',
     },
   });
 
@@ -215,6 +218,19 @@ export function EventDialog({ open, onOpenChange, event, onSave, isLoading }: Ev
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="invitation_text">Kutsuteksti (sähköpostikutsuihin)</Label>
+            <Textarea
+              id="invitation_text"
+              {...register('invitation_text')}
+              placeholder="Kirjoita tähän mukautettu viesti, joka näkyy sähköpostikutsuissa..."
+              rows={4}
+            />
+            <p className="text-xs text-muted-foreground">
+              Tämä teksti lisätään sähköpostikutsuihin tapahtuman tietojen jälkeen.
+            </p>
           </div>
 
           <DialogFooter>
