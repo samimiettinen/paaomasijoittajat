@@ -112,6 +112,43 @@ export function MemberDialog({ open, onOpenChange, member, onSave, onDelete, onI
     },
   });
 
+  // Reset form when member changes
+  useEffect(() => {
+    if (open) {
+      if (member) {
+        reset({
+          first_name: member.first_name,
+          last_name: member.last_name,
+          mobile_phone: member.mobile_phone,
+          email: member.email || '',
+          secondary_email: member.secondary_email || '',
+          organization: member.organization || '',
+          organization_role: member.organization_role || '',
+          linkedin_url: member.linkedin_url || '',
+          github_url: member.github_url || '',
+          membership_status: member.membership_status,
+          is_admin: member.is_admin,
+          notes: member.notes || '',
+        });
+      } else {
+        reset({
+          first_name: '',
+          last_name: '',
+          mobile_phone: '',
+          email: '',
+          secondary_email: '',
+          organization: '',
+          organization_role: '',
+          linkedin_url: '',
+          github_url: '',
+          membership_status: 'active',
+          is_admin: false,
+          notes: '',
+        });
+      }
+    }
+  }, [member, open, reset]);
+
   // Show saved state when isSaved becomes true
   useEffect(() => {
     if (isSaved) {
