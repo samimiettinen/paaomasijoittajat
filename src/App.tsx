@@ -11,6 +11,7 @@ import MembersPage from "@/pages/MembersPage";
 import MemberDetailPage from "@/pages/MemberDetailPage";
 import EventsPage from "@/pages/EventsPage";
 import EventDetailPage from "@/pages/EventDetailPage";
+import ProfilePage from "@/pages/ProfilePage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -38,11 +39,34 @@ const App = () => (
                 <AppLayout />
               </ProtectedRoute>
             }>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/members" element={<MembersPage />} />
-              <Route path="/members/:id" element={<MemberDetailPage />} />
-              <Route path="/events" element={<EventsPage />} />
-              <Route path="/events/:id" element={<EventDetailPage />} />
+              {/* Admin-only routes */}
+              <Route path="/" element={
+                <ProtectedRoute requireAdmin>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/members" element={
+                <ProtectedRoute requireAdmin>
+                  <MembersPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/members/:id" element={
+                <ProtectedRoute requireAdmin>
+                  <MemberDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/events" element={
+                <ProtectedRoute requireAdmin>
+                  <EventsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/events/:id" element={
+                <ProtectedRoute requireAdmin>
+                  <EventDetailPage />
+                </ProtectedRoute>
+              } />
+              {/* Profile page - accessible to all authenticated users */}
+              <Route path="/profile" element={<ProfilePage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

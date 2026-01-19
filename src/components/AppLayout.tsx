@@ -1,28 +1,36 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, Users, Calendar, Menu, X, LogOut } from 'lucide-react';
+import { Home, Users, Calendar, Menu, X, LogOut, User, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
-
-const navigation = [
-  { name: 'Etusivu', href: '/', icon: Home },
-  { name: 'Jäsenet', href: '/members', icon: Users },
-  { name: 'Tapahtumat', href: '/events', icon: Calendar },
-];
+import { Badge } from '@/components/ui/badge';
 
 export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin, isVibeCoder, adminLevel } = useAuth();
 
   const handleSignOut = async () => {
     await signOut();
   };
 
+  // Navigation items based on role
+  const navigation = isAdmin 
+    ? [
+        { name: 'Etusivu', href: '/', icon: Home },
+        { name: 'Jäsenet', href: '/members', icon: Users },
+        { name: 'Tapahtumat', href: '/events', icon: Calendar },
+      ]
+    : [
+        { name: 'Omat tiedot', href: '/profile', icon: User },
+      ];
+
+  const roleLabel = adminLevel === 'super' ? 'Super Admin' : adminLevel === 'regular' ? 'Admin' : adminLevel === 'vibe_coder' ? 'Vibe Coder' : '';
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 border-r border-border bg-card lg:block">
+      <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 border-r border-border bg-card lg:flex lg:flex-col">
         <div className="flex h-16 items-center gap-3 border-b border-border px-6">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
             PV
@@ -32,7 +40,7 @@ export function AppLayout() {
             <span className="text-xs text-muted-foreground">Society</span>
           </div>
         </div>
-        <nav className="flex flex-col gap-1 p-4">
+        <nav className="flex flex-col gap-1 p-4 flex-1">
           {navigation.map((item) => (
             <NavLink
               key={item.href}
@@ -49,11 +57,32 @@ export function AppLayout() {
               {item.name}
             </NavLink>
           ))}
+          {isAdmin && (
+            <NavLink
+              to="/profile"
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                }`
+              }
+            >
+              <User className="h-5 w-5" />
+              Omat tiedot
+            </NavLink>
+          )}
         </nav>
-        <div className="absolute bottom-4 left-4 right-4 space-y-3">
+        <div className="border-t border-border p-4 space-y-3">
           {user && (
-            <div className="px-3 py-2 rounded-lg bg-secondary">
+            <div className="px-3 py-2 rounded-lg bg-secondary space-y-1">
               <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              {roleLabel && (
+                <Badge variant="outline" className="text-xs">
+                  <Shield className="h-3 w-3 mr-1" />
+                  {roleLabel}
+                </Badge>
+              )}
             </div>
           )}
           <div className="flex items-center justify-between">
@@ -109,15 +138,53 @@ export function AppLayout() {
                 {item.name}
               </NavLink>
             ))}
+            {isAdmin && (
+              <NavLink
+                to="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  }`
+                }
+              >
+                <User className="h-5 w-5" />
+                Omat tiedot
+              </NavLink>
+            )}
+            {roleLabel && (
+              <div className="mt-4 px-3">
+                <Badge variant="outline" className="text-xs">
+                  <Shield className="h-3 w-3 mr-1" />
+                  {roleLabel}
+                </Badge>
+              </div>
+            )}
           </nav>
         </div>
       )}
 
       {/* Main content */}
-      <main className="lg:pl-64">
-        <div className="min-h-screen pt-16 lg:pt-0">
+      <main className="lg:pl-64 flex-1 flex flex-col">
+        <div className="flex-1 pt-16 lg:pt-0">
           <Outlet />
         </div>
+        
+        {/* GDPR Footer */}
+        <footer className="border-t border-border bg-card/50 py-4 px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+            <p>© {new Date().getFullYear()} Vibe Coding Society. Kaikki oikeudet pidätetään.</p>
+            <div className="flex items-center gap-4">
+              <span>Tietosuojaseloste</span>
+              <span>•</span>
+              <span>GDPR</span>
+              <span>•</span>
+              <span>Tietojen käsittely EU:n tietosuoja-asetuksen mukaisesti</span>
+            </div>
+          </div>
+        </footer>
       </main>
     </div>
   );

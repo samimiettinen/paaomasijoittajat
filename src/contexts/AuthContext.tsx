@@ -2,11 +2,17 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+type AdminLevel = 'super' | 'regular' | 'vibe_coder' | null;
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isVibeCoder: boolean;
+  adminLevel: AdminLevel;
+  memberId: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -17,7 +23,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLevel, setAdminLevel] = useState<AdminLevel>(null);
+  const [memberId, setMemberId] = useState<string | null>(null);
+
+  const isAdmin = adminLevel === 'super' || adminLevel === 'regular';
+  const isSuperAdmin = adminLevel === 'super';
+  const isVibeCoder = adminLevel === 'vibe_coder';
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -35,19 +46,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .maybeSingle();
           
           if (member) {
-            // Check if they're in the admins table
+            setMemberId(member.id);
+            
+            // Check admin level from admins table
             const { data: adminRecord } = await supabase
               .from('admins')
-              .select('id')
+              .select('admin_level')
               .eq('member_id', member.id)
               .maybeSingle();
             
-            setIsAdmin(!!adminRecord || member.is_admin);
+            if (adminRecord) {
+              setAdminLevel(adminRecord.admin_level as AdminLevel);
+            } else if (member.is_admin) {
+              // Fallback for legacy is_admin flag
+              setAdminLevel('regular');
+            } else {
+              setAdminLevel(null);
+            }
           } else {
-            setIsAdmin(false);
+            setMemberId(null);
+            setAdminLevel(null);
           }
         } else {
-          setIsAdmin(false);
+          setMemberId(null);
+          setAdminLevel(null);
         }
         
         setIsLoading(false);
@@ -75,11 +97,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    setIsAdmin(false);
+    setAdminLevel(null);
+    setMemberId(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, isAdmin, signIn, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      isLoading, 
+      isAdmin, 
+      isSuperAdmin,
+      isVibeCoder,
+      adminLevel,
+      memberId,
+      signIn, 
+      signOut 
+    }}>
       {children}
     </AuthContext.Provider>
   );
