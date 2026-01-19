@@ -58,6 +58,7 @@ export default function EventDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false);
+  const [emailPreviewOpen, setEmailPreviewOpen] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [sendingEmails, setSendingEmails] = useState(false);
 
@@ -247,7 +248,7 @@ export default function EventDetailPage() {
           <div className="flex gap-2">
             {participants.length > 0 && (
               <>
-                <Button variant="outline" onClick={handleSendEmails} disabled={sendingEmails}>
+                <Button variant="outline" onClick={() => setEmailPreviewOpen(true)} disabled={sendingEmails}>
                   {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
                   Sähköposti
                 </Button>
@@ -409,6 +410,78 @@ export default function EventDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Email Preview Dialog */}
+      <Dialog open={emailPreviewOpen} onOpenChange={setEmailPreviewOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Sähköpostikutsun esikatselu</DialogTitle>
+            <DialogDescription>
+              Tarkista sähköpostin sisältö ennen lähettämistä {participants.length} vastaanottajalle.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="border rounded-lg p-6 bg-card space-y-4">
+            <div className="border-b pb-4">
+              <p className="text-sm text-muted-foreground">Aihe:</p>
+              <p className="font-medium">Kutsu: {event.title}</p>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Olet saanut kutsun tapahtumaan!</h3>
+              <h2 className="text-xl font-bold text-primary">{event.title}</h2>
+              
+              <div className="bg-secondary/50 p-4 rounded-lg space-y-2">
+                <p><strong>📅 Päivämäärä:</strong> {format(new Date(event.event_date), 'd.M.yyyy', { locale: fi })}</p>
+                <p><strong>🕐 Aika:</strong> {event.start_time.slice(0, 5)} - {event.end_time.slice(0, 5)}</p>
+                {(event.location_name || event.location_address || event.location_city) && (
+                  <p><strong>📍 Paikka:</strong> {[event.location_name, event.location_address, event.location_city].filter(Boolean).join(', ')}</p>
+                )}
+                {event.description && <p><strong>📝 Kuvaus:</strong> {event.description}</p>}
+              </div>
+              
+              {event.invitation_text && (
+                <div className="bg-secondary/50 p-4 rounded-lg border-l-4 border-primary">
+                  <p className="text-sm font-medium mb-2">Kutsuteksti:</p>
+                  <p className="whitespace-pre-wrap">{event.invitation_text}</p>
+                </div>
+              )}
+              
+              <div className="text-center py-4">
+                <div className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium">
+                  Vastaa kutsuun
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">(Painike vie henkilökohtaiselle RSVP-sivulle)</p>
+              </div>
+            </div>
+          </div>
+          
+          {!event.invitation_text && (
+            <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <FileText className="h-4 w-4 text-amber-600" />
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                Vinkki: Voit lisätä mukautetun kutsutekstin muokkaamalla tapahtumaa.
+              </p>
+            </div>
+          )}
+          
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEmailPreviewOpen(false)}>
+              Peruuta
+            </Button>
+            <Button 
+              onClick={() => {
+                setEmailPreviewOpen(false);
+                handleSendEmails();
+              }}
+              disabled={sendingEmails}
+            >
+              {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+              Lähetä {participants.length} sähköpostia
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Bulk WhatsApp Dialog */}
       <BulkWhatsAppDialog
