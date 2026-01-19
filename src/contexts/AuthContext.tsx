@@ -71,6 +71,9 @@ const clearCachedData = () => {
   }
 };
 
+// Track if signIn is handling the fetch (to prevent duplicate fetches)
+let signInHandlingFetch = false;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -289,8 +292,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user?.email) {
-          // For fresh sign-ins, always fetch from DB
+          // For fresh sign-ins, skip if signIn is handling it
           if (event === 'SIGNED_IN') {
+            if (signInHandlingFetch) {
+              authLog('SIGNED_IN - skipping, signIn() is handling fetch');
+              setIsLoading(false);
+              return;
+            }
             authLog('SIGNED_IN - fetching fresh data');
             await fetchUserData(session.user.email, true);
           } else {
@@ -362,21 +370,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const signInStart = Date.now();
     authLog('signIn called');
     
+    // Mark that signIn is handling the fetch
+    signInHandlingFetch = true;
+    
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     authLog(`signInWithPassword complete (error=${!!error})`, signInStart);
     
     if (error) {
+      signInHandlingFetch = false;
       return { error: error as Error | null };
     }
     
-    // If sign-in succeeded, eagerly fetch user data NOW before returning
-    // This ensures navigation happens only after we have permissions
+    // Set session/user immediately
+    if (data.session) {
+      setSession(data.session);
+      setUser(data.user);
+    }
+    
+    // Fetch user data before returning (navigation happens after this)
     if (data.user?.email) {
-      authLog('Eagerly fetching user data before returning');
+      authLog('Fetching user data in signIn');
       await fetchUserData(data.user.email, true);
       authLog('signIn complete - ready to navigate', signInStart);
     }
     
+    signInHandlingFetch = false;
+    setIsLoading(false);
     return { error: null };
   };
 
