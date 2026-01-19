@@ -482,7 +482,7 @@ export default function EventDetailPage() {
 
       {/* Email Preview Dialog */}
       <Dialog open={emailPreviewOpen} onOpenChange={setEmailPreviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-3xl h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Sähköpostikutsut</DialogTitle>
             <DialogDescription>
@@ -490,109 +490,112 @@ export default function EventDetailPage() {
             </DialogDescription>
           </DialogHeader>
           
-          {/* Recipients Selection */}
-          <div className="border rounded-lg p-4 space-y-3 flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium">Vastaanottajat ({selectedEmailRecipients.length}/{participants.filter(p => p.member?.email).length})</h4>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={selectAllEmailRecipients}>
-                  Valitse kaikki
-                </Button>
-                <Button variant="outline" size="sm" onClick={deselectAllEmailRecipients}>
-                  Tyhjennä
-                </Button>
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+            {/* Recipients Selection */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Vastaanottajat ({selectedEmailRecipients.length}/{participants.filter(p => p.member?.email).length})</h4>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={selectAllEmailRecipients}>
+                    Valitse kaikki
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={deselectAllEmailRecipients}>
+                    Tyhjennä
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {participants.map((participant) => {
+                  const hasEmail = !!participant.member?.email;
+                  const lastSendDate = getLastEmailSendDate(participant.member_id);
+                  const hasSentEmail = !!lastSendDate;
+                  return (
+                    <label
+                      key={participant.id}
+                      className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${
+                        hasEmail ? 'hover:bg-secondary' : 'opacity-50 cursor-not-allowed'
+                      } ${selectedEmailRecipients.includes(participant.member_id) ? 'bg-secondary border-primary' : ''}`}
+                    >
+                      <Checkbox
+                        checked={selectedEmailRecipients.includes(participant.member_id)}
+                        onCheckedChange={() => hasEmail && toggleEmailRecipient(participant.member_id)}
+                        disabled={!hasEmail}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">
+                          {participant.member?.first_name} {participant.member?.last_name}
+                        </p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {hasEmail ? participant.member?.email : 'Ei sähköpostia'}
+                        </p>
+                        {hasSentEmail && (
+                          <p className="text-xs text-muted-foreground">
+                            Lähetetty: {format(lastSendDate, 'd.M.yyyy HH:mm', { locale: fi })}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {hasSentEmail && (
+                          <span className="text-xs text-amber-600 dark:text-amber-400">(uudelleenlähetys)</span>
+                        )}
+                        <Badge variant={statusVariants[participant.status]} className="text-xs">
+                          {statusLabels[participant.status]}
+                        </Badge>
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
             </div>
-            <div className="max-h-[40vh] overflow-y-auto space-y-2 border rounded-md p-2 bg-muted/30">
-              {participants.map((participant) => {
-                const hasEmail = !!participant.member?.email;
-                const lastSendDate = getLastEmailSendDate(participant.member_id);
-                const hasSentEmail = !!lastSendDate;
-                return (
-                  <label
-                    key={participant.id}
-                    className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${
-                      hasEmail ? 'hover:bg-secondary' : 'opacity-50 cursor-not-allowed'
-                    } ${selectedEmailRecipients.includes(participant.member_id) ? 'bg-secondary border-primary' : ''}`}
-                  >
-                    <Checkbox
-                      checked={selectedEmailRecipients.includes(participant.member_id)}
-                      onCheckedChange={() => hasEmail && toggleEmailRecipient(participant.member_id)}
-                      disabled={!hasEmail}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">
-                        {participant.member?.first_name} {participant.member?.last_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {hasEmail ? participant.member?.email : 'Ei sähköpostia'}
-                      </p>
-                      {hasSentEmail && (
-                        <p className="text-xs text-muted-foreground">
-                          Lähetetty: {format(lastSendDate, 'd.M.yyyy HH:mm', { locale: fi })}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {hasSentEmail && (
-                        <span className="text-xs text-amber-600 dark:text-amber-400">(uudelleenlähetys)</span>
-                      )}
-                      <Badge variant={statusVariants[participant.status]} className="text-xs">
-                        {statusLabels[participant.status]}
-                      </Badge>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Email Preview */}
-          <div className="border rounded-lg p-6 bg-card space-y-4">
-            <div className="border-b pb-4">
-              <p className="text-sm text-muted-foreground">Aihe:</p>
-              <p className="font-medium">Kutsu: {event.title}</p>
+            {/* Email Preview */}
+            <div className="border rounded-lg p-6 bg-card space-y-4">
+              <div className="border-b pb-4">
+                <p className="text-sm text-muted-foreground">Aihe:</p>
+                <p className="font-medium">Kutsu: {event.title}</p>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Olet saanut kutsun tapahtumaan!</h3>
+                <h2 className="text-xl font-bold text-primary">{event.title}</h2>
+                
+                <div className="bg-secondary/50 p-4 rounded-lg space-y-2">
+                  <p><strong>📅 Päivämäärä:</strong> {format(new Date(event.event_date), 'd.M.yyyy', { locale: fi })}</p>
+                  <p><strong>🕐 Aika:</strong> {event.start_time.slice(0, 5)} - {event.end_time.slice(0, 5)}</p>
+                  {(event.location_name || event.location_address || event.location_city) && (
+                    <p><strong>📍 Paikka:</strong> {[event.location_name, event.location_address, event.location_city].filter(Boolean).join(', ')}</p>
+                  )}
+                  {event.description && <p><strong>📝 Kuvaus:</strong> {event.description}</p>}
+                </div>
+                
+                {event.invitation_text && (
+                  <div className="bg-secondary/50 p-4 rounded-lg border-l-4 border-primary">
+                    <p className="text-sm font-medium mb-2">Kutsuteksti:</p>
+                    <p className="whitespace-pre-wrap">{event.invitation_text}</p>
+                  </div>
+                )}
+                
+                <div className="text-center py-4">
+                  <div className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium">
+                    Vastaa kutsuun
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">(Painike vie henkilökohtaiselle RSVP-sivulle)</p>
+                </div>
+              </div>
             </div>
             
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Olet saanut kutsun tapahtumaan!</h3>
-              <h2 className="text-xl font-bold text-primary">{event.title}</h2>
-              
-              <div className="bg-secondary/50 p-4 rounded-lg space-y-2">
-                <p><strong>📅 Päivämäärä:</strong> {format(new Date(event.event_date), 'd.M.yyyy', { locale: fi })}</p>
-                <p><strong>🕐 Aika:</strong> {event.start_time.slice(0, 5)} - {event.end_time.slice(0, 5)}</p>
-                {(event.location_name || event.location_address || event.location_city) && (
-                  <p><strong>📍 Paikka:</strong> {[event.location_name, event.location_address, event.location_city].filter(Boolean).join(', ')}</p>
-                )}
-                {event.description && <p><strong>📝 Kuvaus:</strong> {event.description}</p>}
+            {!event.invitation_text && (
+              <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                <FileText className="h-4 w-4 text-amber-600" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  Vinkki: Voit lisätä mukautetun kutsutekstin muokkaamalla tapahtumaa.
+                </p>
               </div>
-              
-              {event.invitation_text && (
-                <div className="bg-secondary/50 p-4 rounded-lg border-l-4 border-primary">
-                  <p className="text-sm font-medium mb-2">Kutsuteksti:</p>
-                  <p className="whitespace-pre-wrap">{event.invitation_text}</p>
-                </div>
-              )}
-              
-              <div className="text-center py-4">
-                <div className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium">
-                  Vastaa kutsuun
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">(Painike vie henkilökohtaiselle RSVP-sivulle)</p>
-              </div>
-            </div>
+            )}
           </div>
           
-          {!event.invitation_text && (
-            <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-              <FileText className="h-4 w-4 text-amber-600" />
-              <p className="text-sm text-amber-700 dark:text-amber-400">
-                Vinkki: Voit lisätä mukautetun kutsutekstin muokkaamalla tapahtumaa.
-              </p>
-            </div>
-          )}
-          
-          <DialogFooter className="gap-2">
+          <DialogFooter className="flex-shrink-0 gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setEmailPreviewOpen(false)}>
               Peruuta
             </Button>
