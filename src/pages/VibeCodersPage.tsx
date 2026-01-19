@@ -23,6 +23,8 @@ type AdminLevel = Database['public']['Enums']['admin_level'];
 const vibeCoderSchema = z.object({
   member_id: z.string().min(1, 'Valitse jäsen'),
   admin_level: z.enum(['vibe_coder', 'regular', 'super']),
+  send_email: z.boolean().default(true),
+  temp_password: z.string().min(8, 'Salasanan tulee olla vähintään 8 merkkiä').optional().or(z.literal('')),
 });
 
 type VibeCoderFormData = z.infer<typeof vibeCoderSchema>;
@@ -48,16 +50,22 @@ export default function VibeCodersPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [adminToDelete, setAdminToDelete] = useState<AdminWithMember | null>(null);
 
+  const [sendingEmail, setSendingEmail] = useState(false);
+  
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<VibeCoderFormData>({
     resolver: zodResolver(vibeCoderSchema),
     defaultValues: {
       member_id: '',
       admin_level: 'vibe_coder',
+      send_email: true,
+      temp_password: '',
     },
   });
 
   const selectedMemberId = watch('member_id');
   const selectedAdminLevel = watch('admin_level');
+  const sendEmail = watch('send_email');
+  const tempPassword = watch('temp_password');
 
   // Fetch all admins with member info
   const { data: admins = [], isLoading } = useQuery({
@@ -114,10 +122,37 @@ export default function VibeCodersPage() {
           admin_level: data.admin_level,
         });
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['admins-with-members'] });
-      toast.success('Käyttäjä lisätty onnistuneesti');
+      
+      // Send welcome email if enabled
+      if (data.send_email) {
+        setSendingEmail(true);
+        try {
+          const response = await supabase.functions.invoke('send-vibecoder-welcome', {
+            body: {
+              memberId: data.member_id,
+              adminLevel: data.admin_level,
+              tempPassword: data.temp_password || undefined,
+            },
+          });
+          
+          if (response.error) {
+            toast.error(`Käyttäjä lisätty, mutta sähköpostin lähetys epäonnistui: ${response.error.message}`);
+          } else {
+            toast.success('Käyttäjä lisätty ja tervetulosähköposti lähetetty');
+          }
+        } catch (emailError: any) {
+          toast.error(`Käyttäjä lisätty, mutta sähköpostin lähetys epäonnistui: ${emailError.message}`);
+        } finally {
+          setSendingEmail(false);
+        }
+      } else {
+        toast.success('Käyttäjä lisätty onnistuneesti');
+      }
+      
       setDialogOpen(false);
       reset();
     },
@@ -352,15 +387,45 @@ export default function VibeCodersPage() {
                     </div>
                   </SelectItem>
                 </SelectContent>
-              </Select>
+            </Select>
             </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="send_email"
+                checked={sendEmail}
+                onChange={(e) => setValue('send_email', e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              <Label htmlFor="send_email" className="text-sm font-normal cursor-pointer">
+                Lähetä tervetulosähköposti kirjautumistiedoilla
+              </Label>
+            </div>
+
+            {sendEmail && (
+              <div className="space-y-2">
+                <Label>Väliaikainen salasana (valinnainen)</Label>
+                <Input
+                  type="text"
+                  placeholder="Jätä tyhjäksi, jos käyttäjällä on jo tili"
+                  {...register('temp_password')}
+                />
+                {errors.temp_password && (
+                  <p className="text-sm text-destructive">{errors.temp_password.message}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Jos annat salasanan, käyttäjälle luodaan tili tai päivitetään olemassa oleva salasana.
+                </p>
+              </div>
+            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Peruuta
               </Button>
-              <Button type="submit" disabled={createAdmin.isPending}>
-                {createAdmin.isPending ? 'Lisätään...' : 'Lisää käyttäjä'}
+              <Button type="submit" disabled={createAdmin.isPending || sendingEmail}>
+                {createAdmin.isPending || sendingEmail ? 'Lisätään...' : 'Lisää käyttäjä'}
               </Button>
             </DialogFooter>
           </form>
