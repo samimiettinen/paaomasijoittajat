@@ -1,8 +1,9 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, Users, Calendar, Menu, X } from 'lucide-react';
+import { Home, Users, Calendar, Menu, X, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
   { name: 'Etusivu', href: '/', icon: Home },
@@ -12,6 +13,11 @@ const navigation = [
 
 export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -44,8 +50,18 @@ export function AppLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="absolute bottom-4 left-4 right-4">
-          <ThemeToggle />
+        <div className="absolute bottom-4 left-4 right-4 space-y-3">
+          {user && (
+            <div className="px-3 py-2 rounded-lg bg-secondary">
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <ThemeToggle />
+            <Button variant="ghost" size="icon" onClick={handleSignOut} title="Kirjaudu ulos">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </aside>
 
@@ -59,6 +75,9 @@ export function AppLayout() {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <Button variant="ghost" size="icon" onClick={handleSignOut} title="Kirjaudu ulos">
+            <LogOut className="h-4 w-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
