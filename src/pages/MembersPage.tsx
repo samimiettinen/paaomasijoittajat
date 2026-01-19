@@ -170,22 +170,32 @@ export default function MembersPage() {
               <TableHead className="hidden md:table-cell">Sähköposti</TableHead>
               <TableHead className="hidden lg:table-cell">Organisaatio</TableHead>
               <TableHead>Tila</TableHead>
-              <TableHead className="w-[100px]">Toiminnot</TableHead>
+              <TableHead className="w-[160px]">Toiminnot</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredMembers.map((member) => (
-              <TableRow key={member.id} className="cursor-pointer" onClick={() => { setSelectedMember(member); setDialogOpen(true); }}>
+              <TableRow key={member.id} className="group">
                 <TableCell className="font-medium">{member.first_name} {member.last_name}{member.is_admin && <Badge variant="secondary" className="ml-2 text-xs">Admin</Badge>}</TableCell>
                 <TableCell>{member.mobile_phone}</TableCell>
                 <TableCell className="hidden md:table-cell">{member.email || '-'}</TableCell>
                 <TableCell className="hidden lg:table-cell">{member.organization || '-'}</TableCell>
                 <TableCell><Badge variant={member.membership_status === 'active' ? 'default' : 'secondary'}>{statusLabels[member.membership_status]}</Badge></TableCell>
                 <TableCell>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => navigate(`/members/${member.id}`)} title="Näytä tiedot"><Eye className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" asChild><a href={getWhatsAppLink(member.mobile_phone)} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-4 w-4" /></a></Button>
-                    {member.linkedin_url && <Button variant="ghost" size="icon" asChild><a href={member.linkedin_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /></a></Button>}
+                    <Button variant="ghost" size="icon" onClick={() => { setSelectedMember(member); setDialogOpen(true); }} title="Muokkaa"><Pencil className="h-4 w-4" /></Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => { setMemberToDelete(member); setDeleteConfirmOpen(true); }} 
+                      title="Poista"
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" asChild><a href={getWhatsAppLink(member.mobile_phone)} target="_blank" rel="noopener noreferrer" title="WhatsApp"><MessageCircle className="h-4 w-4" /></a></Button>
+                    {member.linkedin_url && <Button variant="ghost" size="icon" asChild><a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" title="LinkedIn"><ExternalLink className="h-4 w-4" /></a></Button>}
                   </div>
                 </TableCell>
               </TableRow>
