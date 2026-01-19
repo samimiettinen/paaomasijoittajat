@@ -31,6 +31,12 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
           <p className="text-muted-foreground">
             Yhteyden vahvistus katkennut
           </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+          >
+            Päivitä
+          </button>
         </div>
       </div>
     );
