@@ -16,6 +16,7 @@ interface AuthContextType {
   memberId: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshPermissions: () => Promise<void>;
 }
 
 interface CachedAuthData {
@@ -297,6 +298,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMemberId(null);
   };
 
+  // Manual refresh permissions function
+  const refreshPermissions = useCallback(async () => {
+    if (!user?.email) return;
+    clearCachedData();
+    await fetchUserData(user.email, false, true);
+  }, [user?.email, fetchUserData]);
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -308,7 +316,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       adminLevel,
       memberId,
       signIn, 
-      signOut 
+      signOut,
+      refreshPermissions
     }}>
       {children}
     </AuthContext.Provider>

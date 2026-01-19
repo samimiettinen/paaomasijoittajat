@@ -1,17 +1,31 @@
 import { Outlet, NavLink, Link } from 'react-router-dom';
-import { Home, Users, Calendar, Menu, X, LogOut, User, Shield, UserCog } from 'lucide-react';
+import { Home, Users, Calendar, Menu, X, LogOut, User, Shield, UserCog, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, signOut, isAdmin, isVibeCoder, adminLevel } = useAuth();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { user, signOut, isAdmin, isVibeCoder, adminLevel, refreshPermissions } = useAuth();
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleRefreshPermissions = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshPermissions();
+      toast.success('Oikeudet päivitetty');
+    } catch {
+      toast.error('Oikeuksien päivitys epäonnistui');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   // Navigation items based on role
@@ -88,9 +102,20 @@ export function AppLayout() {
           )}
           <div className="flex items-center justify-between">
             <ThemeToggle />
-            <Button variant="ghost" size="icon" onClick={handleSignOut} title="Kirjaudu ulos">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleRefreshPermissions} 
+                disabled={isRefreshing}
+                title="Päivitä oikeudet"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleSignOut} title="Kirjaudu ulos">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </aside>
