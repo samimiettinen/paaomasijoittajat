@@ -104,7 +104,13 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
+          <div className="mt-4 text-center">
+            <Link to="/reset-password" className="text-sm text-muted-foreground hover:text-primary hover:underline">
+              Unohtuiko salasana?
+            </Link>
+          </div>
+
+          <div className="mt-4 text-center text-sm text-muted-foreground">
             <p>Vain ylläpitäjät voivat kirjautua.</p>
             <Link to="/signup" className="text-primary hover:underline mt-2 block">
               Eikö sinulla ole tiliä? Rekisteröidy

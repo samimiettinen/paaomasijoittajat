@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, Upload, Download, MessageCircle, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, Upload, Download, MessageCircle, ExternalLink, Eye } from 'lucide-react';
 import { useMembers, useCreateMember, useUpdateMember, useDeleteMember, useBulkImportMembers } from '@/hooks/useMembers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ const statusLabels: Record<Member['membership_status'], string> = {
 };
 
 export default function MembersPage() {
+  const navigate = useNavigate();
   const { data: members = [], isLoading } = useMembers();
   const createMember = useCreateMember();
   const updateMember = useUpdateMember();
@@ -106,6 +108,7 @@ export default function MembersPage() {
                 <TableCell><Badge variant={member.membership_status === 'active' ? 'default' : 'secondary'}>{statusLabels[member.membership_status]}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" onClick={() => navigate(`/members/${member.id}`)} title="Näytä tiedot"><Eye className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" asChild><a href={getWhatsAppLink(member.mobile_phone)} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-4 w-4" /></a></Button>
                     {member.linkedin_url && <Button variant="ghost" size="icon" asChild><a href={member.linkedin_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /></a></Button>}
                   </div>
