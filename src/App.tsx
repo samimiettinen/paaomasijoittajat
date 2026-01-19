@@ -12,6 +12,8 @@ import MemberDetailPage from "@/pages/MemberDetailPage";
 import EventsPage from "@/pages/EventsPage";
 import EventDetailPage from "@/pages/EventDetailPage";
 import ProfilePage from "@/pages/ProfilePage";
+import VibeCodersPage from "@/pages/VibeCodersPage";
+import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -34,6 +36,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/update-password" element={<UpdatePasswordPage />} />
             <Route path="/rsvp" element={<RsvpPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route element={
               <ProtectedRoute>
                 <AppLayout />
@@ -63,6 +66,11 @@ const App = () => (
               <Route path="/events/:id" element={
                 <ProtectedRoute requireAdmin>
                   <EventDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/vibe-coders" element={
+                <ProtectedRoute requireAdmin>
+                  <VibeCodersPage />
                 </ProtectedRoute>
               } />
               {/* Profile page - accessible to all authenticated users */}
