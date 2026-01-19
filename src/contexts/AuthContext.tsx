@@ -165,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: member } = await supabase
         .from('members')
         .select('id')
-        .eq('email', email)
+        .ilike('email', email)
         .maybeSingle();
       authLog('Background verify: members query done', verifyStart);
 
@@ -224,7 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Fetch member data with timeout
       const memberQuery = async () => {
-        return supabase.from('members').select('id, is_admin').eq('email', email).maybeSingle();
+        return supabase.from('members').select('id, is_admin').ilike('email', email).maybeSingle();
       };
       const memberResult = await withTimeout(
         memberQuery(),

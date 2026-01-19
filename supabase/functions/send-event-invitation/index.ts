@@ -180,12 +180,16 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         // Log email send to database
-        await supabase.from("email_sends").insert({
+        const { error: insertError } = await supabase.from("email_sends").insert({
           event_id: eventId,
           member_id: member.id,
           email_address: member.email,
           sent_by_member_id: senderMemberId || null,
         });
+
+        if (insertError) {
+          console.error("Failed to log email send:", insertError);
+        }
 
         results.push({ memberId: member.id, success: true });
       } catch (emailError: any) {
