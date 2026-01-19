@@ -1,0 +1,1 @@
+ALTER TABLE public.events ADD COLUMN invitation_text text;

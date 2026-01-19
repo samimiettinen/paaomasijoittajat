@@ -24,6 +24,7 @@ interface Event {
   location_name: string | null;
   location_address: string | null;
   location_city: string | null;
+  invitation_text: string | null;
 }
 
 interface Member {
@@ -129,6 +130,12 @@ const handler = async (req: Request): Promise<Response> => {
               ${location ? `<p><strong>📍 Paikka:</strong> ${location}</p>` : ""}
               ${event.description ? `<p><strong>📝 Kuvaus:</strong> ${event.description}</p>` : ""}
             </div>
+            
+            ${event.invitation_text ? `
+            <div style="background-color: #edf2f7; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+              <p style="margin: 0; white-space: pre-wrap;">${event.invitation_text}</p>
+            </div>
+            ` : ""}
             
             ${rsvpUrl ? `
             <div style="text-align: center; margin: 30px 0;">
