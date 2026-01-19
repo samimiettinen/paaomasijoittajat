@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fi } from 'date-fns/locale';
-import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Check, X, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare } from 'lucide-react';
 import { useEvent, useEventParticipants, useUpdateEvent, useDeleteEvent, useInviteMembers, useUpdateParticipantStatus } from '@/hooks/useEvents';
 import { useMembers } from '@/hooks/useMembers';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { EventDialog } from '@/components/EventDialog';
+import { BulkWhatsAppDialog } from '@/components/BulkWhatsAppDialog';
 import { downloadICS } from '@/lib/calendar';
 import type { Event, EventFormData, ParticipantStatus } from '@/lib/types';
 
@@ -54,6 +55,7 @@ export default function EventDetailPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 
   if (eventLoading || !event) {
@@ -200,9 +202,16 @@ export default function EventDetailPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Osallistujalista</CardTitle>
-          <Button onClick={() => setInviteDialogOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />Kutsu jäseniä
-          </Button>
+          <div className="flex gap-2">
+            {participants.length > 0 && (
+              <Button variant="outline" onClick={() => setWhatsappDialogOpen(true)}>
+                <MessageSquare className="h-4 w-4 mr-2" />WhatsApp
+              </Button>
+            )}
+            <Button onClick={() => setInviteDialogOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />Kutsu jäseniä
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {participants.length === 0 ? (
@@ -329,6 +338,20 @@ export default function EventDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk WhatsApp Dialog */}
+      <BulkWhatsAppDialog
+        open={whatsappDialogOpen}
+        onOpenChange={setWhatsappDialogOpen}
+        members={participants
+          .filter(p => p.member)
+          .map(p => ({
+            first_name: p.member!.first_name,
+            last_name: p.member!.last_name,
+            mobile_phone: p.member!.mobile_phone,
+          }))}
+        eventTitle={event.title}
+      />
     </div>
   );
 }
