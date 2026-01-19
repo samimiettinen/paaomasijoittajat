@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import type { Event, EventFormData, ParticipantStatus } from '@/lib/types';
 
 const statusLabels: Record<ParticipantStatus, string> = {
-  invited: 'Kutsuttu',
+  invited: 'Listalla',
   confirmed: 'Vahvistettu',
   declined: 'Kieltäytynyt',
   attended: 'Osallistui',
@@ -147,11 +147,27 @@ export default function EventDetailPage() {
     }
   };
 
+  // Helper to check if member has received email
+  const hasReceivedEmail = (memberIdToCheck: string): boolean => {
+    return emailSends.some(s => s.member_id === memberIdToCheck);
+  };
+
   // Helper to get last email send date for a member
   const getLastEmailSendDate = (memberIdToCheck: string) => {
     const sends = emailSends.filter(s => s.member_id === memberIdToCheck);
     if (sends.length === 0) return null;
     return new Date(sends[0].sent_at);
+  };
+
+  // Get display status based on participant status and email history
+  const getDisplayStatus = (participant: { status: ParticipantStatus; member_id: string }) => {
+    if (participant.status === 'invited') {
+      if (hasReceivedEmail(participant.member_id)) {
+        return { label: 'Kutsuttu', variant: 'secondary' as const };
+      }
+      return { label: 'Listalla', variant: 'outline' as const };
+    }
+    return { label: statusLabels[participant.status], variant: statusVariants[participant.status] };
   };
 
   const openEmailPreview = () => {
@@ -301,7 +317,7 @@ export default function EventDetailPage() {
               </>
             )}
             <Button onClick={() => setInviteDialogOpen(true)}>
-              <UserPlus className="h-4 w-4 mr-2" />Kutsu uusia jäseniä
+              <UserPlus className="h-4 w-4 mr-2" />Lisää osallistujalistalle
             </Button>
           </div>
         </CardHeader>
@@ -339,9 +355,14 @@ export default function EventDetailPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariants[participant.status]}>
-                        {statusLabels[participant.status]}
-                      </Badge>
+                      {(() => {
+                        const displayStatus = getDisplayStatus(participant);
+                        return (
+                          <Badge variant={displayStatus.variant}>
+                            {displayStatus.label}
+                          </Badge>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Select
@@ -352,7 +373,9 @@ export default function EventDetailPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="invited">Kutsuttu</SelectItem>
+                          <SelectItem value="invited">
+                            {hasReceivedEmail(participant.member_id) ? 'Kutsuttu' : 'Listalla'}
+                          </SelectItem>
                           <SelectItem value="confirmed">Vahvistettu</SelectItem>
                           <SelectItem value="declined">Kieltäytynyt</SelectItem>
                           <SelectItem value="attended">Osallistui</SelectItem>
@@ -384,9 +407,12 @@ export default function EventDetailPage() {
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Kutsu uusia jäseniä</DialogTitle>
+            <DialogTitle>Lisää osallistujalistalle</DialogTitle>
             <DialogDescription>
-              Valitse jäsenet, jotka haluat kutsua tapahtumaan.
+              Valitse jäsenet, jotka haluat lisätä tapahtuman osallistujalistalle.
+              <span className="block mt-2 text-amber-600 dark:text-amber-400">
+                Huom: Tämä ei lähetä sähköpostia. Käytä "Sähköposti"-painiketta lähettääksesi kutsut.
+              </span>
             </DialogDescription>
           </DialogHeader>
           
@@ -397,7 +423,7 @@ export default function EventDetailPage() {
               <div className="flex justify-between items-center py-2 border-b">
                 <span className="text-sm text-muted-foreground">{availableMembers.length} jäsentä saatavilla</span>
                 <Button variant="outline" size="sm" onClick={handleInviteAll}>
-                  Kutsu kaikki
+                  Lisää kaikki
                 </Button>
               </div>
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
@@ -423,7 +449,7 @@ export default function EventDetailPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>Peruuta</Button>
             <Button onClick={handleInviteMembers} disabled={selectedMembers.length === 0}>
-              Kutsu ({selectedMembers.length})
+              Lisää ({selectedMembers.length})
             </Button>
           </DialogFooter>
         </DialogContent>
