@@ -18,6 +18,36 @@ export function useMembers() {
   });
 }
 
+export function useMemberEventInvitations(memberId: string | undefined) {
+  return useQuery({
+    queryKey: ['member-invitations', memberId],
+    queryFn: async () => {
+      if (!memberId) return [];
+      
+      const { data, error } = await supabase
+        .from('event_participants')
+        .select(`
+          id,
+          status,
+          invited_at,
+          event_id,
+          events (
+            id,
+            title,
+            event_date,
+            status
+          )
+        `)
+        .eq('member_id', memberId)
+        .order('invited_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!memberId,
+  });
+}
+
 export function useMember(id: string) {
   return useQuery({
     queryKey: ['members', id],

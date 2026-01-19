@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Trash2, Mail, Check } from 'lucide-react';
+import { Trash2, Mail, Check, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useMemberEventInvitations } from '@/hooks/useMembers';
 import type { Member, MemberFormData, MembershipStatus } from '@/lib/types';
 
 const memberSchema = z.object({
@@ -61,6 +64,15 @@ const statusOptions: { value: MembershipStatus; label: string }[] = [
 export function MemberDialog({ open, onOpenChange, member, onSave, onDelete, onInviteToEvent, isLoading, isSaved }: MemberDialogProps) {
   const isEditing = !!member;
   const [showSavedState, setShowSavedState] = useState(false);
+  const { data: invitations = [] } = useMemberEventInvitations(member?.id);
+
+  const statusLabels: Record<string, { label: string; icon: typeof CheckCircle; color: string }> = {
+    invited: { label: 'Kutsuttu', icon: Clock, color: 'text-muted-foreground' },
+    confirmed: { label: 'Vahvistettu', icon: CheckCircle, color: 'text-green-600' },
+    declined: { label: 'Kieltäytynyt', icon: XCircle, color: 'text-red-600' },
+    attended: { label: 'Osallistui', icon: CheckCircle, color: 'text-green-600' },
+    no_show: { label: 'Ei saapunut', icon: XCircle, color: 'text-orange-600' },
+  };
 
   const {
     register,
@@ -285,6 +297,39 @@ export function MemberDialog({ open, onOpenChange, member, onSave, onDelete, onI
               rows={3}
             />
           </div>
+
+          {isEditing && invitations.length > 0 && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Tapahtumakutsut ({invitations.length})
+              </Label>
+              <ScrollArea className="h-32 rounded-md border p-3">
+                <div className="space-y-2">
+                  {invitations.map((inv: any) => {
+                    const statusInfo = statusLabels[inv.status] || statusLabels.invited;
+                    const StatusIcon = statusInfo.icon;
+                    return (
+                      <div key={inv.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <StatusIcon className={`h-4 w-4 ${statusInfo.color}`} />
+                          <span>{inv.events?.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">
+                            {new Date(inv.events?.event_date).toLocaleDateString('fi-FI')}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {statusInfo.label}
+                          </Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <div className="flex gap-2 mr-auto">
