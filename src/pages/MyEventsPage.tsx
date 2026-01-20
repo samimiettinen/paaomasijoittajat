@@ -1,11 +1,13 @@
 import { format } from 'date-fns';
 import { fi } from 'date-fns/locale';
-import { Calendar, MapPin, Clock, Check, X, Users } from 'lucide-react';
+import { Calendar, MapPin, Clock, Check, X, Users, Download } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useMyEvents, useUpdateMyRsvp } from '@/hooks/useMyEvents';
+import { downloadICS } from '@/lib/calendar';
+import type { Event } from '@/lib/types';
 
 const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   invited: { label: 'Kutsuttu', variant: 'outline' },
@@ -120,7 +122,7 @@ export default function MyEventsPage() {
                             </label>
                           </div>
 
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <Button
                               size="sm"
                               onClick={() => handleRsvp(participation.id, 'confirmed', participation.early_arrival || false)}
@@ -138,6 +140,14 @@ export default function MyEventsPage() {
                             >
                               <X className="h-4 w-4 mr-1" />
                               En osallistu
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => downloadICS(event as Event)}
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              Lataa .ics kalenteriisi
                             </Button>
                           </div>
                         </div>

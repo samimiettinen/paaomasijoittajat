@@ -215,7 +215,7 @@ export default function EventDetailPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => downloadICS(event)}>
-            <Download className="h-4 w-4 mr-2" />Lataa .ics
+            <Download className="h-4 w-4 mr-2" />Lataa .ics kalenteriisi
           </Button>
           <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
             <Edit className="h-4 w-4 mr-2" />Muokkaa
