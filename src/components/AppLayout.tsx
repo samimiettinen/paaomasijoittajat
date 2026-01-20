@@ -1,5 +1,5 @@
 import { Outlet, NavLink, Link } from 'react-router-dom';
-import { Home, Users, Calendar, Menu, X, LogOut, User, Shield, UserCog, RefreshCw } from 'lucide-react';
+import { Home, Users, Calendar, Menu, X, LogOut, User, Shield, UserCog, RefreshCw, CalendarCheck } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -38,6 +38,7 @@ export function AppLayout() {
       ]
     : [
         { name: 'Omat tiedot', href: '/profile', icon: User },
+        { name: 'Omat tapahtumat', href: '/my-events', icon: CalendarCheck },
       ];
 
   const roleLabel = adminLevel === 'super' ? 'Super Admin' : adminLevel === 'regular' ? 'Admin' : adminLevel === 'vibe_coder' ? 'Vibe Coder' : '';

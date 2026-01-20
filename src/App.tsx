@@ -12,6 +12,7 @@ import MemberDetailPage from "@/pages/MemberDetailPage";
 import EventsPage from "@/pages/EventsPage";
 import EventDetailPage from "@/pages/EventDetailPage";
 import ProfilePage from "@/pages/ProfilePage";
+import MyEventsPage from "@/pages/MyEventsPage";
 import VibeCodersPage from "@/pages/VibeCodersPage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import LoginPage from "@/pages/LoginPage";
@@ -73,8 +74,9 @@ const App = () => (
                   <VibeCodersPage />
                 </ProtectedRoute>
               } />
-              {/* Profile page - accessible to all authenticated users */}
+              {/* Pages accessible to all authenticated users */}
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/my-events" element={<MyEventsPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

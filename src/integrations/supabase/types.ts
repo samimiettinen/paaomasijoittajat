@@ -230,6 +230,7 @@ export type Database = {
       }
       members: {
         Row: {
+          avatar_url: string | null
           created_at: string
           email: string | null
           first_name: string
@@ -246,6 +247,7 @@ export type Database = {
           secondary_email: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           email?: string | null
           first_name: string
@@ -262,6 +264,7 @@ export type Database = {
           secondary_email?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           email?: string | null
           first_name?: string

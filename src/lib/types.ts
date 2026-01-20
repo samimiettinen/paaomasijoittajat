@@ -20,6 +20,7 @@ export interface Member {
   membership_status: MembershipStatus;
   is_admin: boolean;
   notes: string | null;
+  avatar_url: string | null;
 }
 
 export interface Event {

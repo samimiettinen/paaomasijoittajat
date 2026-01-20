@@ -7,11 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMember, useUpdateMember } from '@/hooks/useMembers';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { AvatarUpload } from '@/components/AvatarUpload';
 
 const profileSchema = z.object({
   first_name: z.string().min(1, 'Etunimi vaaditaan'),
@@ -157,7 +157,14 @@ export default function ProfilePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+          <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
+            {/* Avatar Upload */}
+            <AvatarUpload
+              currentAvatarUrl={member?.avatar_url}
+              firstName={member?.first_name}
+              lastName={member?.last_name}
+            />
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="first_name">Etunimi *</Label>
