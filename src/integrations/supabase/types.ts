@@ -341,6 +341,7 @@ export type Database = {
     }
     Functions: {
       get_current_user_member_id: { Args: never; Returns: string }
+      get_member_id_by_token: { Args: { token_value: string }; Returns: string }
       is_admin: { Args: { member_phone: string }; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
     }
