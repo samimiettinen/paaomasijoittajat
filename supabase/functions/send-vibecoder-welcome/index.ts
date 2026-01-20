@@ -93,8 +93,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Use custom content if provided, otherwise use defaults
     const emailSubject = customContent?.subject || `Tervetuloa - Käyttöoikeudet myönnetty (${roleLabel})`;
     const greeting = customContent?.greeting?.replace('{{name}}', member.first_name) || `Tervetuloa, ${member.first_name}!`;
-    const introText = customContent?.introText || 'Sinulle on myönnetty käyttöoikeudet Pääomaomistajat ry:n järjestelmään.';
-    const signature = customContent?.signature || 'Ystävällisin terveisin,\nPääomaomistajat ry';
+    const introText = customContent?.introText || 'Sinulle on myönnetty käyttöoikeudet järjestelmään.';
+    const signature = customContent?.signature || 'Ystävällisin terveisin,\nPääomaomistajat';
 
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

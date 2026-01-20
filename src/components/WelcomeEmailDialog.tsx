@@ -34,8 +34,8 @@ interface EmailTemplate {
 }
 
 const DEFAULT_GREETING = 'Tervetuloa, {{name}}!';
-const DEFAULT_INTRO_TEXT = 'Sinulle on myönnetty käyttöoikeudet Pääomaomistajat ry:n järjestelmään.';
-const DEFAULT_SIGNATURE = 'Ystävällisin terveisin,\nPääomaomistajat ry';
+const DEFAULT_INTRO_TEXT = 'Sinulle on myönnetty käyttöoikeudet järjestelmään.';
+const DEFAULT_SIGNATURE = 'Ystävällisin terveisin,\nPääomaomistajat';
 
 export function WelcomeEmailDialog({
   open,
@@ -362,7 +362,7 @@ export function WelcomeEmailDialog({
                   <Textarea
                     value={signature}
                     onChange={(e) => setSignature(e.target.value)}
-                    placeholder="Ystävällisin terveisin,&#10;Pääomaomistajat ry"
+                    placeholder="Ystävällisin terveisin,&#10;Pääomaomistajat"
                     rows={3}
                   />
                 </div>
