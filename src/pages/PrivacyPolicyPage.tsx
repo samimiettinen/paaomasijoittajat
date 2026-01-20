@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage() {
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold">Tietosuojaseloste</h1>
         <p className="text-muted-foreground">
-          Vibe Coding Society ry - GDPR-tietosuojaseloste
+          Pääomaomistajat - GDPR-tietosuojaseloste
         </p>
         <p className="text-xs text-muted-foreground">
           Päivitetty: {new Date().toLocaleDateString('fi-FI')}
@@ -23,7 +23,7 @@ export default function PrivacyPolicyPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <p><strong>Nimi:</strong> Vibe Coding Society ry</p>
+          <p><strong>Nimi:</strong> Pääomaomistajat</p>
           <p><strong>Osoite:</strong> Helsinki, Suomi</p>
           <p><strong>Sähköposti:</strong> info@vibecoding.fi</p>
           <p>
@@ -257,7 +257,7 @@ export default function PrivacyPolicyPage() {
 
       <div className="text-center text-xs text-muted-foreground pt-4">
         <p>Tietosuojavaltuutetun toimisto: tietosuoja.fi</p>
-        <p className="mt-1">© {new Date().getFullYear()} Vibe Coding Society ry</p>
+        <p className="mt-1">© {new Date().getFullYear()} Pääomaomistajat</p>
       </div>
     </div>
   );
