@@ -69,6 +69,15 @@ export default function VibeCodersPage() {
   const [welcomeEmailDialogOpen, setWelcomeEmailDialogOpen] = useState(false);
   const [welcomeEmailTarget, setWelcomeEmailTarget] = useState<AdminWithMember | null>(null);
   const [welcomeEmailTempPassword, setWelcomeEmailTempPassword] = useState<string>('');
+  
+  // State for new user welcome email flow
+  const [newUserWelcomeEmailPending, setNewUserWelcomeEmailPending] = useState<{
+    memberId: string;
+    memberName: string;
+    memberEmail: string;
+    adminLevel: AdminLevel;
+    tempPassword: string;
+  } | null>(null);
 
   const [sendingEmail, setSendingEmail] = useState(false);
   
@@ -178,29 +187,20 @@ export default function VibeCodersPage() {
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['admins-with-members'] });
       
-      // Send welcome email if enabled
+      // If send_email is enabled, open welcome email dialog for customization
       if (data.send_email) {
-        setSendingEmail(true);
-        try {
-          const response = await supabase.functions.invoke('send-vibecoder-welcome', {
-            body: {
-              memberId: data.member_id,
-              adminLevel: data.admin_level,
-              tempPassword: data.auto_create_account ? data.temp_password : undefined,
-            },
+        const selectedMember = members.find(m => m.id === data.member_id);
+        if (selectedMember?.email) {
+          setNewUserWelcomeEmailPending({
+            memberId: data.member_id,
+            memberName: selectedMember.first_name,
+            memberEmail: selectedMember.email,
+            adminLevel: data.admin_level,
+            tempPassword: data.auto_create_account ? (data.temp_password || '') : '',
           });
-          
-          if (response.error) {
-            toast.error(`Käyttäjä lisätty, mutta sähköpostin lähetys epäonnistui: ${response.error.message}`);
-          } else {
-            toast.success('Käyttäjä lisätty ja tervetulosähköposti lähetetty');
-            // Refresh auth status
-            queryClient.invalidateQueries({ queryKey: ['auth-status'] });
-          }
-        } catch (emailError: any) {
-          toast.error(`Käyttäjä lisätty, mutta sähköpostin lähetys epäonnistui: ${emailError.message}`);
-        } finally {
-          setSendingEmail(false);
+          toast.success('Käyttäjä lisätty. Muokkaa tervetulosähköpostia ennen lähetystä.');
+        } else {
+          toast.warning('Käyttäjä lisätty, mutta sähköpostia ei voitu lähettää: sähköpostiosoite puuttuu.');
         }
       } else {
         toast.success('Käyttäjä lisätty onnistuneesti');
@@ -298,6 +298,36 @@ export default function VibeCodersPage() {
       toast.error(`Sähköpostin lähetys epäonnistui: ${error.message}`);
     } finally {
       setResendingCredentials(null);
+    }
+  };
+
+  // Send welcome email for newly added user with custom content
+  const handleSendNewUserWelcomeEmail = async (customContent: { subject: string; greeting: string; introText: string; signature: string }) => {
+    if (!newUserWelcomeEmailPending) return;
+
+    setSendingEmail(true);
+
+    try {
+      const response = await supabase.functions.invoke('send-vibecoder-welcome', {
+        body: {
+          memberId: newUserWelcomeEmailPending.memberId,
+          adminLevel: newUserWelcomeEmailPending.adminLevel,
+          tempPassword: newUserWelcomeEmailPending.tempPassword || undefined,
+          customContent,
+        },
+      });
+
+      if (response.error) {
+        toast.error(`Sähköpostin lähetys epäonnistui: ${response.error.message}`);
+      } else {
+        toast.success('Tervetulosähköposti lähetetty onnistuneesti');
+        queryClient.invalidateQueries({ queryKey: ['auth-status'] });
+        setNewUserWelcomeEmailPending(null);
+      }
+    } catch (error: any) {
+      toast.error(`Sähköpostin lähetys epäonnistui: ${error.message}`);
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -721,7 +751,7 @@ export default function VibeCodersPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Welcome Email Dialog */}
+      {/* Welcome Email Dialog - for resending credentials */}
       {welcomeEmailTarget && (
         <WelcomeEmailDialog
           open={welcomeEmailDialogOpen}
@@ -735,6 +765,25 @@ export default function VibeCodersPage() {
           tempPassword={welcomeEmailTempPassword}
           onSend={handleSendWelcomeEmail}
           isSending={resendingCredentials === welcomeEmailTarget.id}
+        />
+      )}
+
+      {/* Welcome Email Dialog - for newly added users */}
+      {newUserWelcomeEmailPending && (
+        <WelcomeEmailDialog
+          open={!!newUserWelcomeEmailPending}
+          onOpenChange={(open) => {
+            if (!open) setNewUserWelcomeEmailPending(null);
+          }}
+          memberName={newUserWelcomeEmailPending.memberName}
+          memberEmail={newUserWelcomeEmailPending.memberEmail}
+          roleLabel={
+            newUserWelcomeEmailPending.adminLevel === 'super' ? 'Super Admin' :
+            newUserWelcomeEmailPending.adminLevel === 'regular' ? 'Admin' : 'Vibe Coder'
+          }
+          tempPassword={newUserWelcomeEmailPending.tempPassword}
+          onSend={handleSendNewUserWelcomeEmail}
+          isSending={sendingEmail}
         />
       )}
     </div>
