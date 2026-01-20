@@ -28,15 +28,35 @@ export default function UpdatePasswordPage() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    const checkSession = async () => {
+    const handleRecoveryFlow = async () => {
+      // Listen for auth state changes - this handles the recovery token automatically
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('[UpdatePassword] Auth event:', event, 'Session:', !!session);
+        
+        if (event === 'PASSWORD_RECOVERY') {
+          // User clicked the recovery link - session is now valid
+          setIsValidSession(true);
+          setCheckingSession(false);
+        } else if (event === 'SIGNED_IN' && session) {
+          // User already has a valid session
+          setIsValidSession(true);
+          setCheckingSession(false);
+        }
+      });
+
+      // Also check for existing session (in case page was refreshed)
       const { data: { session } } = await supabase.auth.getSession();
-      // A valid session indicates the user clicked the email link
       if (session) {
         setIsValidSession(true);
       }
       setCheckingSession(false);
+
+      return () => {
+        subscription.unsubscribe();
+      };
     };
-    checkSession();
+
+    handleRecoveryFlow();
   }, []);
 
   const {
