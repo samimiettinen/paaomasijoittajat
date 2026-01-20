@@ -10,25 +10,21 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
-interface InvitationData {
-  id: string;
-  status: string;
+interface RsvpData {
+  participant_id: string;
+  participant_status: string;
   early_arrival: boolean | null;
-  event: {
-    id: string;
-    title: string;
-    event_date: string;
-    start_time: string;
-    end_time: string;
-    description: string | null;
-    location_name: string | null;
-    location_address: string | null;
-    location_city: string | null;
-  };
-  member: {
-    first_name: string;
-    last_name: string;
-  };
+  event_id: string;
+  event_title: string;
+  event_date: string;
+  event_start_time: string;
+  event_end_time: string;
+  event_description: string | null;
+  event_location_name: string | null;
+  event_location_address: string | null;
+  event_location_city: string | null;
+  member_first_name: string;
+  member_last_name: string;
 }
 
 export default function RsvpPage() {
@@ -37,64 +33,63 @@ export default function RsvpPage() {
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [invitation, setInvitation] = useState<InvitationData | null>(null);
+  const [rsvpData, setRsvpData] = useState<RsvpData | null>(null);
   const [earlyArrival, setEarlyArrival] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [responseType, setResponseType] = useState<'confirmed' | 'declined' | null>(null);
 
   useEffect(() => {
     if (token) {
-      fetchInvitation();
+      fetchRsvpData();
     } else {
       setLoading(false);
     }
   }, [token]);
 
-  const fetchInvitation = async () => {
+  const fetchRsvpData = async () => {
     try {
+      // Use the secure RPC function instead of direct table query
       const { data, error } = await supabase
-        .from('event_participants')
-        .select(`
-          id,
-          status,
-          early_arrival,
-          event:events(id, title, event_date, start_time, end_time, description, location_name, location_address, location_city),
-          member:members(first_name, last_name)
-        `)
-        .eq('invitation_token', token)
-        .maybeSingle();
+        .rpc('get_rsvp_by_token', { token_value: token });
 
       if (error) throw error;
       
-      if (data) {
-        setInvitation(data as unknown as InvitationData);
-        setEarlyArrival(data.early_arrival ?? false);
-        if (data.status === 'confirmed' || data.status === 'declined') {
+      // RPC returns an array, get the first result
+      const result = Array.isArray(data) ? data[0] : data;
+      
+      if (result) {
+        setRsvpData(result as RsvpData);
+        setEarlyArrival(result.early_arrival ?? false);
+        if (result.participant_status === 'confirmed' || result.participant_status === 'declined') {
           setSubmitted(true);
-          setResponseType(data.status as 'confirmed' | 'declined');
+          setResponseType(result.participant_status as 'confirmed' | 'declined');
         }
       }
     } catch (error) {
-      console.error('Error fetching invitation:', error);
+      console.error('Error fetching RSVP data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleRsvp = async (response: 'confirmed' | 'declined') => {
-    if (!invitation) return;
+    if (!rsvpData || !token) return;
     
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('event_participants')
-        .update({
-          status: response,
-          early_arrival: response === 'confirmed' ? earlyArrival : null,
-        })
-        .eq('invitation_token', token);
+      // Use the secure RPC function instead of direct table update
+      const { data, error } = await supabase
+        .rpc('update_rsvp_by_token', { 
+          token_value: token,
+          new_status: response,
+          new_early_arrival: response === 'confirmed' ? earlyArrival : null
+        });
 
       if (error) throw error;
+
+      if (!data) {
+        throw new Error('RSVP update failed');
+      }
 
       setSubmitted(true);
       setResponseType(response);
@@ -115,7 +110,7 @@ export default function RsvpPage() {
     );
   }
 
-  if (!token || !invitation) {
+  if (!token || !rsvpData) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
@@ -130,7 +125,7 @@ export default function RsvpPage() {
     );
   }
 
-  const eventDate = new Date(invitation.event.event_date);
+  const eventDate = new Date(rsvpData.event_date);
 
   if (submitted) {
     return (
@@ -151,13 +146,13 @@ export default function RsvpPage() {
             </CardTitle>
             <CardDescription>
               {responseType === 'confirmed' 
-                ? `Kiitos ${invitation.member.first_name}! Nähdään tapahtumassa.`
+                ? `Kiitos ${rsvpData.member_first_name}! Nähdään tapahtumassa.`
                 : 'Kiitos ilmoituksestasi. Toivottavasti näemme seuraavalla kerralla!'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 rounded-lg bg-muted">
-              <h3 className="font-semibold mb-2">{invitation.event.title}</h3>
+              <h3 className="font-semibold mb-2">{rsvpData.event_title}</h3>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
@@ -165,12 +160,12 @@ export default function RsvpPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  <span>{invitation.event.start_time.slice(0, 5)} - {invitation.event.end_time.slice(0, 5)}</span>
+                  <span>{rsvpData.event_start_time.slice(0, 5)} - {rsvpData.event_end_time.slice(0, 5)}</span>
                 </div>
-                {invitation.event.location_name && (
+                {rsvpData.event_location_name && (
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    <span>{invitation.event.location_name}</span>
+                    <span>{rsvpData.event_location_name}</span>
                   </div>
                 )}
               </div>
@@ -192,13 +187,13 @@ export default function RsvpPage() {
         <CardHeader>
           <CardTitle>Kutsu tapahtumaan</CardTitle>
           <CardDescription>
-            Hei {invitation.member.first_name}! Olet saanut kutsun tapahtumaan.
+            Hei {rsvpData.member_first_name}! Olet saanut kutsun tapahtumaan.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Event Details */}
           <div className="p-4 rounded-lg bg-muted space-y-3">
-            <h3 className="text-lg font-semibold">{invitation.event.title}</h3>
+            <h3 className="text-lg font-semibold">{rsvpData.event_title}</h3>
             
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-3">
@@ -207,27 +202,27 @@ export default function RsvpPage() {
               </div>
               <div className="flex items-center gap-3">
                 <Clock className="h-5 w-5 text-muted-foreground" />
-                <span>{invitation.event.start_time.slice(0, 5)} - {invitation.event.end_time.slice(0, 5)}</span>
+                <span>{rsvpData.event_start_time.slice(0, 5)} - {rsvpData.event_end_time.slice(0, 5)}</span>
               </div>
-              {invitation.event.location_name && (
+              {rsvpData.event_location_name && (
                 <div className="flex items-start gap-3">
                   <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="font-medium">{invitation.event.location_name}</p>
-                    {invitation.event.location_address && (
-                      <p className="text-muted-foreground">{invitation.event.location_address}</p>
+                    <p className="font-medium">{rsvpData.event_location_name}</p>
+                    {rsvpData.event_location_address && (
+                      <p className="text-muted-foreground">{rsvpData.event_location_address}</p>
                     )}
-                    {invitation.event.location_city && (
-                      <p className="text-muted-foreground">{invitation.event.location_city}</p>
+                    {rsvpData.event_location_city && (
+                      <p className="text-muted-foreground">{rsvpData.event_location_city}</p>
                     )}
                   </div>
                 </div>
               )}
             </div>
             
-            {invitation.event.description && (
+            {rsvpData.event_description && (
               <div className="pt-3 border-t">
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{invitation.event.description}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{rsvpData.event_description}</p>
               </div>
             )}
           </div>
