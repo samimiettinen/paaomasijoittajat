@@ -25,7 +25,7 @@ export default function PrivacyPolicyPage() {
         <CardContent className="space-y-2 text-sm">
           <p><strong>Nimi:</strong> Pääomaomistajat</p>
           <p><strong>Osoite:</strong> Helsinki, Suomi</p>
-          <p><strong>Sähköposti:</strong> info@vibecoding.fi</p>
+          <p><strong>Sähköposti:</strong> sami.miettinen@dcmcapital.fi</p>
           <p>
             Rekisterinpitäjä vastaa henkilötietojen käsittelystä tämän tietosuojaselosteen 
             mukaisesti ja EU:n yleisen tietosuoja-asetuksen (GDPR) vaatimusten mukaisesti.
@@ -226,7 +226,7 @@ export default function PrivacyPolicyPage() {
           <Separator className="my-4" />
           <p>
             Voit käyttää oikeuksiasi ottamalla yhteyttä rekisterinpitäjään sähköpostitse 
-            osoitteeseen <strong>info@vibecoding.fi</strong>. Vastaamme pyyntöihin 30 päivän kuluessa.
+            osoitteeseen <strong>sami.miettinen@dcmcapital.fi</strong>. Vastaamme pyyntöihin 30 päivän kuluessa.
           </p>
         </CardContent>
       </Card>
