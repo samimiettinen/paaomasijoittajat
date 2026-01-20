@@ -26,6 +26,7 @@ interface Event {
   location_address: string | null;
   location_city: string | null;
   invitation_text: string | null;
+  email_signature: string | null;
 }
 
 interface Member {
@@ -152,6 +153,12 @@ const handler = async (req: Request): Promise<Response> => {
             ` : `
             <p>Vahvista osallistumisesi vastaamalla tähän kutsuun.</p>
             `}
+            
+            ${event.email_signature ? `
+            <p style="color: #718096; font-size: 14px; margin-top: 40px; white-space: pre-wrap;">
+              ${event.email_signature}
+            </p>
+            ` : ''}
           </div>
         `;
 
