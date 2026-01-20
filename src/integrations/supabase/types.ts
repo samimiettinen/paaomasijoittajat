@@ -342,8 +342,35 @@ export type Database = {
     Functions: {
       get_current_user_member_id: { Args: never; Returns: string }
       get_member_id_by_token: { Args: { token_value: string }; Returns: string }
+      get_rsvp_by_token: {
+        Args: { token_value: string }
+        Returns: {
+          early_arrival: boolean
+          event_date: string
+          event_description: string
+          event_end_time: string
+          event_id: string
+          event_location_address: string
+          event_location_city: string
+          event_location_name: string
+          event_start_time: string
+          event_title: string
+          member_first_name: string
+          member_last_name: string
+          participant_id: string
+          participant_status: string
+        }[]
+      }
       is_admin: { Args: { member_phone: string }; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      update_rsvp_by_token: {
+        Args: {
+          new_early_arrival?: boolean
+          new_status: string
+          token_value: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       admin_level: "super" | "regular" | "vibe_coder"
