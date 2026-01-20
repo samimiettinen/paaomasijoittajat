@@ -28,9 +28,9 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   if (!hasAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <div className="text-center space-y-6 max-w-md">
-          <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-            <RefreshCw className="w-8 h-8 text-muted-foreground" />
+        <div className="text-center space-y-6 max-w-md animate-fade-in">
+          <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center animate-pulse">
+            <RefreshCw className="w-8 h-8 text-muted-foreground animate-spin" style={{ animationDuration: '3s' }} />
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-foreground">Käyttöoikeudet tarkistetaan</h1>
@@ -41,18 +41,18 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={() => refreshPermissions()}
-              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors font-medium"
+              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-all duration-200 font-medium hover:scale-105 active:scale-95"
             >
               Jatka tietoturvallista sessiota
             </button>
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-2.5 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors font-medium"
+              className="px-6 py-2.5 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-all duration-200 font-medium hover:scale-105 active:scale-95"
             >
               Lataa sivu uudelleen
             </button>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground animate-pulse">
             Jos ongelma jatkuu, ota yhteyttä ylläpitoon.
           </p>
         </div>
