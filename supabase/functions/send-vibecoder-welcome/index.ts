@@ -13,6 +13,12 @@ interface WelcomeEmailRequest {
   memberId: string;
   adminLevel: string;
   tempPassword?: string;
+  customContent?: {
+    subject?: string;
+    greeting?: string;
+    introText?: string;
+    signature?: string;
+  };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -25,7 +31,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { memberId, adminLevel, tempPassword }: WelcomeEmailRequest = await req.json();
+    const { memberId, adminLevel, tempPassword, customContent }: WelcomeEmailRequest = await req.json();
 
     // Fetch member details
     const { data: member, error: memberError } = await supabase
@@ -84,11 +90,17 @@ const handler = async (req: Request): Promise<Response> => {
     const roleLabel = adminLevel === 'super' ? 'Super Admin' : 
                       adminLevel === 'regular' ? 'Admin' : 'Vibe Coder';
 
+    // Use custom content if provided, otherwise use defaults
+    const emailSubject = customContent?.subject || `Tervetuloa - Käyttöoikeudet myönnetty (${roleLabel})`;
+    const greeting = customContent?.greeting?.replace('{{name}}', member.first_name) || `Tervetuloa, ${member.first_name}!`;
+    const introText = customContent?.introText || 'Sinulle on myönnetty käyttöoikeudet Pääomaomistajat ry:n järjestelmään.';
+    const signature = customContent?.signature || 'Ystävällisin terveisin,\nPääomaomistajat ry';
+
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #1a365d;">Tervetuloa, ${member.first_name}!</h1>
+        <h1 style="color: #1a365d;">${greeting}</h1>
         
-        <p>Sinulle on myönnetty käyttöoikeudet Pääomaomistajat ry:n järjestelmään.</p>
+        <p>${introText}</p>
         
         <div style="background-color: #f7fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h2 style="color: #2d3748; margin-top: 0;">Käyttäjätietosi</h2>
@@ -121,10 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
           </p>
         </div>
         
-        <p style="color: #718096; font-size: 14px; margin-top: 40px;">
-          Ystävällisin terveisin,<br>
-          Pääomaomistajat ry
-        </p>
+        <p style="color: #718096; font-size: 14px; margin-top: 40px; white-space: pre-wrap;">${signature}</p>
       </div>
     `;
 
@@ -137,7 +146,7 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         from: "Pääomaomistajat <noreply@byte.fi>",
         to: [member.email],
-        subject: `Tervetuloa - Käyttöoikeudet myönnetty (${roleLabel})`,
+        subject: emailSubject,
         html: emailHtml,
       }),
     });

@@ -1,0 +1,209 @@
+import { useState, useEffect } from 'react';
+import { Eye, Edit, Mail, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface WelcomeEmailDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  memberName: string;
+  memberEmail: string;
+  roleLabel: string;
+  tempPassword?: string;
+  onSend: (customContent: { subject: string; greeting: string; introText: string; signature: string }) => void;
+  isSending: boolean;
+}
+
+const DEFAULT_GREETING = 'Tervetuloa, {{name}}!';
+const DEFAULT_INTRO_TEXT = 'Sinulle on myönnetty käyttöoikeudet Pääomaomistajat ry:n järjestelmään.';
+const DEFAULT_SIGNATURE = 'Ystävällisin terveisin,\nPääomaomistajat ry';
+
+export function WelcomeEmailDialog({
+  open,
+  onOpenChange,
+  memberName,
+  memberEmail,
+  roleLabel,
+  tempPassword,
+  onSend,
+  isSending,
+}: WelcomeEmailDialogProps) {
+  const [activeTab, setActiveTab] = useState<'preview' | 'edit'>('preview');
+  const [subject, setSubject] = useState(`Tervetuloa - Käyttöoikeudet myönnetty (${roleLabel})`);
+  const [greeting, setGreeting] = useState(DEFAULT_GREETING);
+  const [introText, setIntroText] = useState(DEFAULT_INTRO_TEXT);
+  const [signature, setSignature] = useState(DEFAULT_SIGNATURE);
+
+  // Reset content when dialog opens with new data
+  useEffect(() => {
+    if (open) {
+      setSubject(`Tervetuloa - Käyttöoikeudet myönnetty (${roleLabel})`);
+      setGreeting(DEFAULT_GREETING);
+      setIntroText(DEFAULT_INTRO_TEXT);
+      setSignature(DEFAULT_SIGNATURE);
+      setActiveTab('preview');
+    }
+  }, [open, roleLabel]);
+
+  const handleSend = () => {
+    onSend({ subject, greeting, introText, signature });
+  };
+
+  const previewGreeting = greeting.replace('{{name}}', memberName);
+
+  const emailPreviewHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #1a365d; margin-bottom: 16px;">${previewGreeting}</h1>
+      
+      <p style="color: #374151; line-height: 1.6;">${introText}</p>
+      
+      <div style="background-color: #f7fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h2 style="color: #2d3748; margin-top: 0; font-size: 18px;">Käyttäjätietosi</h2>
+        
+        <p style="margin: 8px 0;"><strong>🔐 Rooli:</strong> ${roleLabel}</p>
+        <p style="margin: 8px 0;"><strong>📧 Sähköposti:</strong> ${memberEmail}</p>
+        ${tempPassword ? `<p style="margin: 8px 0;"><strong>🔑 Väliaikainen salasana:</strong> ${tempPassword}</p>` : ''}
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <span style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; border-radius: 8px; font-weight: bold;">
+          Kirjaudu sisään
+        </span>
+      </div>
+      
+      ${tempPassword ? `
+      <div style="background-color: #fef3c7; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0; color: #92400e;">
+          <strong>⚠️ Tärkeää:</strong> Vaihda salasanasi heti ensimmäisen kirjautumisen jälkeen omissa tiedoissasi.
+        </p>
+      </div>
+      ` : ''}
+      
+      <div style="background-color: #e0f2fe; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0; color: #0369a1;">
+          <strong>Unohditko salasanasi?</strong>
+        </p>
+        <p style="margin: 0; color: #0369a1;">
+          Voit nollata salasanasi milloin tahansa: <a href="#" style="color: #0369a1;">Nollaa salasana</a>
+        </p>
+      </div>
+      
+      <p style="color: #718096; font-size: 14px; margin-top: 40px; white-space: pre-wrap;">${signature}</p>
+    </div>
+  `;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Tervetulosähköposti
+          </DialogTitle>
+          <DialogDescription>
+            Lähetä tervetulosähköposti käyttäjälle {memberName} ({memberEmail})
+          </DialogDescription>
+        </DialogHeader>
+
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'preview' | 'edit')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="preview" className="flex items-center gap-2">
+              <Eye className="h-4 w-4" />
+              Esikatselu
+            </TabsTrigger>
+            <TabsTrigger value="edit" className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              Muokkaa sisältöä
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="preview" className="mt-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="font-medium">Aihe:</span>
+                <span>{subject}</span>
+              </div>
+              <ScrollArea className="h-[400px] border rounded-lg">
+                <div 
+                  className="p-4 bg-white"
+                  dangerouslySetInnerHTML={{ __html: emailPreviewHtml }}
+                />
+              </ScrollArea>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="edit" className="mt-4">
+            <ScrollArea className="h-[400px] pr-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Sähköpostin otsikko</Label>
+                  <Input
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="Sähköpostin otsikko..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tervehdys</Label>
+                  <Input
+                    value={greeting}
+                    onChange={(e) => setGreeting(e.target.value)}
+                    placeholder="Tervetuloa, {{name}}!"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Käytä {'{{name}}'} lisätäksesi vastaanottajan etunimen.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Johdantoteksti</Label>
+                  <Textarea
+                    value={introText}
+                    onChange={(e) => setIntroText(e.target.value)}
+                    placeholder="Viesti vastaanottajalle..."
+                    rows={3}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Allekirjoitus</Label>
+                  <Textarea
+                    value={signature}
+                    onChange={(e) => setSignature(e.target.value)}
+                    placeholder="Ystävällisin terveisin,&#10;Pääomaomistajat ry"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Peruuta
+          </Button>
+          <Button onClick={handleSend} disabled={isSending}>
+            {isSending ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Lähetetään...
+              </>
+            ) : (
+              <>
+                <Mail className="h-4 w-4 mr-2" />
+                Lähetä sähköposti
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

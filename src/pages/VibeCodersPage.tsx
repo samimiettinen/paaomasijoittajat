@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Trash2, UserPlus, Shield, Mail, RefreshCw, CheckCircle2, XCircle, KeyRound, KeySquare } from 'lucide-react';
+import { Plus, Search, Trash2, UserPlus, Shield, Mail, RefreshCw, CheckCircle2, XCircle, KeyRound, KeySquare, Edit } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMembers } from '@/hooks/useMembers';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
+import { WelcomeEmailDialog } from '@/components/WelcomeEmailDialog';
 
 type AdminLevel = Database['public']['Enums']['admin_level'];
 
@@ -65,6 +66,9 @@ export default function VibeCodersPage() {
   const [adminToDelete, setAdminToDelete] = useState<AdminWithMember | null>(null);
   const [resendingCredentials, setResendingCredentials] = useState<string | null>(null);
   const [sendingPasswordReset, setSendingPasswordReset] = useState<string | null>(null);
+  const [welcomeEmailDialogOpen, setWelcomeEmailDialogOpen] = useState(false);
+  const [welcomeEmailTarget, setWelcomeEmailTarget] = useState<AdminWithMember | null>(null);
+  const [welcomeEmailTempPassword, setWelcomeEmailTempPassword] = useState<string>('');
 
   const [sendingEmail, setSendingEmail] = useState(false);
   
@@ -254,34 +258,44 @@ export default function VibeCodersPage() {
     },
   });
 
-  // Resend credentials function
-  const handleResendCredentials = async (admin: AdminWithMember) => {
+  // Open welcome email dialog for resending credentials
+  const handleOpenWelcomeEmailDialog = (admin: AdminWithMember) => {
     if (!admin.member?.email) {
       toast.error('Käyttäjällä ei ole sähköpostiosoitetta');
       return;
     }
-
-    setResendingCredentials(admin.id);
     const newPassword = generatePassword();
+    setWelcomeEmailTempPassword(newPassword);
+    setWelcomeEmailTarget(admin);
+    setWelcomeEmailDialogOpen(true);
+  };
+
+  // Send welcome email with custom content
+  const handleSendWelcomeEmail = async (customContent: { subject: string; greeting: string; introText: string; signature: string }) => {
+    if (!welcomeEmailTarget) return;
+
+    setResendingCredentials(welcomeEmailTarget.id);
 
     try {
       const response = await supabase.functions.invoke('send-vibecoder-welcome', {
         body: {
-          memberId: admin.member_id,
-          adminLevel: admin.admin_level,
-          tempPassword: newPassword,
+          memberId: welcomeEmailTarget.member_id,
+          adminLevel: welcomeEmailTarget.admin_level,
+          tempPassword: welcomeEmailTempPassword,
+          customContent,
         },
       });
 
       if (response.error) {
-        toast.error(`Tunnusten lähetys epäonnistui: ${response.error.message}`);
+        toast.error(`Sähköpostin lähetys epäonnistui: ${response.error.message}`);
       } else {
-        toast.success('Uudet tunnukset lähetetty sähköpostiin');
-        // Refresh auth status
+        toast.success('Tervetulosähköposti lähetetty onnistuneesti');
         queryClient.invalidateQueries({ queryKey: ['auth-status'] });
+        setWelcomeEmailDialogOpen(false);
+        setWelcomeEmailTarget(null);
       }
     } catch (error: any) {
-      toast.error(`Tunnusten lähetys epäonnistui: ${error.message}`);
+      toast.error(`Sähköpostin lähetys epäonnistui: ${error.message}`);
     } finally {
       setResendingCredentials(null);
     }
@@ -487,7 +501,7 @@ export default function VibeCodersPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleResendCredentials(admin)}
+                              onClick={() => handleOpenWelcomeEmailDialog(admin)}
                               disabled={resendingCredentials === admin.id}
                               className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950"
                             >
@@ -706,6 +720,23 @@ export default function VibeCodersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Welcome Email Dialog */}
+      {welcomeEmailTarget && (
+        <WelcomeEmailDialog
+          open={welcomeEmailDialogOpen}
+          onOpenChange={setWelcomeEmailDialogOpen}
+          memberName={welcomeEmailTarget.member?.first_name || ''}
+          memberEmail={welcomeEmailTarget.member?.email || ''}
+          roleLabel={
+            welcomeEmailTarget.admin_level === 'super' ? 'Super Admin' :
+            welcomeEmailTarget.admin_level === 'regular' ? 'Admin' : 'Vibe Coder'
+          }
+          tempPassword={welcomeEmailTempPassword}
+          onSend={handleSendWelcomeEmail}
+          isSending={resendingCredentials === welcomeEmailTarget.id}
+        />
+      )}
     </div>
   );
 }
