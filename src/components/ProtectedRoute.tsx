@@ -43,7 +43,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
               onClick={() => refreshPermissions()}
               className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors font-medium"
             >
-              Tarkista oikeudet uudelleen
+              Jatka tietoturvallista sessiota
             </button>
             <button
               onClick={() => window.location.reload()}
