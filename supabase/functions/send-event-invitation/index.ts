@@ -91,7 +91,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Get the base URL for RSVP links
-    const baseUrl = "https://paaomasijoittajat.lovable.app";
+    const baseUrl = "https://paaomaomistajat.lovable.app";
 
     const results: { memberId: string; success: boolean; error?: string }[] = [];
 
@@ -193,7 +193,7 @@ const handler = async (req: Request): Promise<Response> => {
               Authorization: `Bearer ${RESEND_API_KEY}`,
             },
             body: JSON.stringify({
-              from: "Pääomasijoittajat <noreply@byte.fi>",
+              from: "Pääomaomistajat <noreply@byte.fi>",
               to: [member.email],
               subject: `Kutsu: ${event.title}`,
               html: emailHtml,

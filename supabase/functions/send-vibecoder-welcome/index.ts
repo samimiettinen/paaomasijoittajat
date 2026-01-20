@@ -77,7 +77,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const baseUrl = "https://paaomasijoittajat.lovable.app";
+    const baseUrl = "https://paaomaomistajat.lovable.app";
     const loginUrl = `${baseUrl}/login`;
     const resetPasswordUrl = `${baseUrl}/reset-password`;
 
@@ -88,7 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #1a365d;">Tervetuloa, ${member.first_name}!</h1>
         
-        <p>Sinulle on myönnetty käyttöoikeudet Pääomasijoittajat ry:n järjestelmään.</p>
+        <p>Sinulle on myönnetty käyttöoikeudet Pääomaomistajat ry:n järjestelmään.</p>
         
         <div style="background-color: #f7fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h2 style="color: #2d3748; margin-top: 0;">Käyttäjätietosi</h2>
@@ -123,7 +123,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         <p style="color: #718096; font-size: 14px; margin-top: 40px;">
           Ystävällisin terveisin,<br>
-          Pääomasijoittajat ry
+          Pääomaomistajat ry
         </p>
       </div>
     `;
@@ -135,7 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Pääomasijoittajat <noreply@byte.fi>",
+        from: "Pääomaomistajat <noreply@byte.fi>",
         to: [member.email],
         subject: `Tervetuloa - Käyttöoikeudet myönnetty (${roleLabel})`,
         html: emailHtml,
