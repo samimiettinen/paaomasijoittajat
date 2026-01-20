@@ -24,6 +24,7 @@ export default function PrivacyPolicyPage() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p><strong>Nimi:</strong> Pääomaomistajat</p>
+          <p><strong>Yhteyshenkilö:</strong> Sami Miettinen</p>
           <p><strong>Osoite:</strong> Helsinki, Suomi</p>
           <p><strong>Sähköposti:</strong> sami.miettinen@dcmcapital.fi</p>
           <p>
