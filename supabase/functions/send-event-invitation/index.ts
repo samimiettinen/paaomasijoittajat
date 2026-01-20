@@ -152,11 +152,6 @@ const handler = async (req: Request): Promise<Response> => {
             ` : `
             <p>Vahvista osallistumisesi vastaamalla tähän kutsuun.</p>
             `}
-            
-            <p style="color: #718096; font-size: 14px; margin-top: 40px;">
-              Ystävällisin terveisin,<br>
-              Pääomasijoittajat ry
-            </p>
           </div>
         `;
 
