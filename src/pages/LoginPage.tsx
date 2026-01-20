@@ -59,7 +59,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-bold">Kirjaudu sisään</CardTitle>
           <CardDescription>
-            Pääomasijoittajien vibe coding society
+            Pääomaomistajien vibe coding society
           </CardDescription>
         </CardHeader>
         <CardContent>

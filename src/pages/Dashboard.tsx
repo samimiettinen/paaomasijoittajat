@@ -36,7 +36,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Hallintapaneeli</h1>
         <p className="text-muted-foreground mt-1">
-          Pääomasijoittajien vibe coding society
+          Pääomaomistajien vibe coding society
         </p>
       </div>
 
