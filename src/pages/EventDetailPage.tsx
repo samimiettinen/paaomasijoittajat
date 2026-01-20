@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fi } from 'date-fns/locale';
-import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2, Link, Copy, FileText, Eye, Pencil } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2, Link, Copy, FileText, Eye, Pencil, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import { useEvent, useEventParticipants, useUpdateEvent, useDeleteEvent, useInviteMembers, useUpdateParticipantStatus } from '@/hooks/useEvents';
 import { useEmailSends } from '@/hooks/useEmailSends';
 import { useAuth } from '@/contexts/AuthContext';
@@ -74,6 +74,15 @@ export default function EventDetailPage() {
   const [editableInvitationText, setEditableInvitationText] = useState('');
   const [editableEmailSignature, setEditableEmailSignature] = useState('');
   const [emailViewMode, setEmailViewMode] = useState<'preview' | 'edit'>('preview');
+  
+  // Failed emails tracking
+  interface EmailResult {
+    memberId: string;
+    success: boolean;
+    error?: string;
+  }
+  const [lastEmailResults, setLastEmailResults] = useState<EmailResult[]>([]);
+  const [emailResultsDialogOpen, setEmailResultsDialogOpen] = useState(false);
 
   if (eventLoading || !event) {
     return (
@@ -148,9 +157,23 @@ export default function EventDetailPage() {
 
       if (error) throw error;
 
-      toast.success(`Sähköpostit lähetetty: ${data.message}`);
-      setSelectedEmailRecipients([]);
-      setEmailPreviewOpen(false);
+      const results: EmailResult[] = data.results || [];
+      setLastEmailResults(results);
+      
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+      
+      if (failCount > 0) {
+        // Show results dialog with failed emails
+        setEmailPreviewOpen(false);
+        setEmailResultsDialogOpen(true);
+        toast.warning(`${successCount} lähetetty, ${failCount} epäonnistui`);
+      } else {
+        toast.success(`Kaikki ${successCount} sähköpostia lähetetty onnistuneesti!`);
+        setSelectedEmailRecipients([]);
+        setEmailPreviewOpen(false);
+      }
+      
       // Refresh email sends to show updated history
       refetchEmailSends();
     } catch (error: any) {
@@ -159,6 +182,21 @@ export default function EventDetailPage() {
     } finally {
       setSendingEmails(false);
     }
+  };
+
+  const handleRetryFailedEmails = () => {
+    const failedMemberIds = lastEmailResults
+      .filter(r => !r.success)
+      .map(r => r.memberId);
+    
+    if (failedMemberIds.length > 0) {
+      setEmailResultsDialogOpen(false);
+      handleSendEmails(failedMemberIds);
+    }
+  };
+
+  const getMemberById = (memberId: string) => {
+    return participants.find(p => p.member_id === memberId)?.member;
   };
 
   // Helper to check if member has received email
@@ -692,6 +730,99 @@ export default function EventDetailPage() {
               {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
               Lähetä {selectedEmailRecipients.length} sähköpostia
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Results Dialog */}
+      <Dialog open={emailResultsDialogOpen} onOpenChange={setEmailResultsDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Lähetystulokset
+            </DialogTitle>
+            <DialogDescription>
+              {lastEmailResults.filter(r => r.success).length} onnistui, {lastEmailResults.filter(r => !r.success).length} epäonnistui
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 max-h-[400px] overflow-y-auto">
+            {/* Failed emails section */}
+            {lastEmailResults.filter(r => !r.success).length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-destructive flex items-center gap-2">
+                  <XCircle className="h-4 w-4" />
+                  Epäonnistuneet ({lastEmailResults.filter(r => !r.success).length})
+                </h4>
+                <div className="space-y-2">
+                  {lastEmailResults.filter(r => !r.success).map((result) => {
+                    const member = getMemberById(result.memberId);
+                    return (
+                      <div key={result.memberId} className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                        <XCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {member?.first_name} {member?.last_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {member?.email}
+                          </p>
+                          {result.error && (
+                            <p className="text-xs text-destructive mt-1">
+                              {result.error}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
+            {/* Successful emails section */}
+            {lastEmailResults.filter(r => r.success).length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-green-600 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Onnistuneet ({lastEmailResults.filter(r => r.success).length})
+                </h4>
+                <div className="space-y-1">
+                  {lastEmailResults.filter(r => r.success).map((result) => {
+                    const member = getMemberById(result.memberId);
+                    return (
+                      <div key={result.memberId} className="flex items-center gap-3 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {member?.first_name} {member?.last_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {member?.email}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEmailResultsDialogOpen(false)}>
+              Sulje
+            </Button>
+            {lastEmailResults.filter(r => !r.success).length > 0 && (
+              <Button onClick={handleRetryFailedEmails} disabled={sendingEmails}>
+                {sendingEmails ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                )}
+                Lähetä epäonnistuneet uudelleen ({lastEmailResults.filter(r => !r.success).length})
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
