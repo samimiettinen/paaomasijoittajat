@@ -92,6 +92,56 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          greeting: string | null
+          id: string
+          intro_text: string | null
+          invitation_text: string | null
+          name: string
+          signature: string | null
+          subject: string | null
+          template_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          greeting?: string | null
+          id?: string
+          intro_text?: string | null
+          invitation_text?: string | null
+          name: string
+          signature?: string | null
+          subject?: string | null
+          template_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          greeting?: string | null
+          id?: string
+          intro_text?: string | null
+          invitation_text?: string | null
+          name?: string
+          signature?: string | null
+          subject?: string | null
+          template_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_participants: {
         Row: {
           calendar_invite_sent: boolean
