@@ -1,42 +1,19 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
-import { useEffect, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
 }
 
-const AUTO_RELOAD_SECONDS = 10;
-
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { user, isLoading, permissionsLoading, isAdmin, isVibeCoder, adminLevel } = useAuth();
+  const { user, isLoading, permissionsLoading, isAdmin, isVibeCoder, refreshPermissions } = useAuth();
   const location = useLocation();
-  const [countdown, setCountdown] = useState(AUTO_RELOAD_SECONDS);
 
   // Check if user has any valid role (admin or vibe_coder)
   const hasAccess = isAdmin || isVibeCoder;
-  const showAccessDenied = user && !hasAccess && !isLoading && !permissionsLoading;
-
-  useEffect(() => {
-    if (!showAccessDenied) {
-      setCountdown(AUTO_RELOAD_SECONDS);
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          window.location.reload();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [showAccessDenied]);
 
   // Show skeleton while session OR permissions are loading
   if (isLoading || permissionsLoading) {
@@ -47,23 +24,37 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // User is authenticated but doesn't have access - show friendly message without aggressive reload
   if (!hasAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <div className="text-center space-y-4 max-w-md">
-          <h1 className="text-2xl font-bold text-destructive">Päivitä verkkoselain</h1>
-          <p className="text-muted-foreground">
-            Yhteyden vahvistus katkennut
+        <div className="text-center space-y-6 max-w-md">
+          <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+            <RefreshCw className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">Käyttöoikeudet tarkistetaan</h1>
+            <p className="text-muted-foreground">
+              Käyttöoikeuksiasi ei voitu vahvistaa. Tämä voi johtua hitaasta yhteydestä tai väliaikaisesta ongelmasta.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => refreshPermissions()}
+              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors font-medium"
+            >
+              Tarkista oikeudet uudelleen
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2.5 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors font-medium"
+            >
+              Lataa sivu uudelleen
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Jos ongelma jatkuu, ota yhteyttä ylläpitoon.
           </p>
-          <p className="text-sm text-muted-foreground">
-            Sivu päivittyy automaattisesti {countdown} sekunnin kuluttua
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-          >
-            Päivitä nyt
-          </button>
         </div>
       </div>
     );

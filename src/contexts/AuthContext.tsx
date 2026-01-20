@@ -28,10 +28,10 @@ interface CachedAuthData {
 }
 
 const AUTH_CACHE_KEY = 'auth_member_data';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const LOADING_TIMEOUT = 3000; // 3 seconds max loading
-const DB_QUERY_TIMEOUT = 5000; // 5 seconds max for DB queries
-const DEBUG_AUTH = true; // Enable auth performance logging
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - trust cached data longer
+const LOADING_TIMEOUT = 10000; // 10 seconds max loading
+const DB_QUERY_TIMEOUT = 8000; // 8 seconds max for DB queries
+const DEBUG_AUTH = false; // Disable auth performance logging in production
 
 // Performance logging helper
 const authLog = (message: string, startTime?: number) => {
@@ -156,52 +156,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Background verification to update stale cache
-  const verifyAndRefreshCache = useCallback(async (email: string, cached: CachedAuthData) => {
-    const verifyStart = Date.now();
-    authLog('Background verify started');
-    setPermissionsLoading(true);
-    try {
-      const { data: member } = await supabase
-        .from('members')
-        .select('id')
-        .ilike('email', email)
-        .maybeSingle();
-      authLog('Background verify: members query done', verifyStart);
-
-      if (!member) {
-        if (cached.memberId !== null) {
-          clearCachedData();
-          setMemberId(null);
-          setAdminLevel(null);
-        }
-        setPermissionsLoading(false);
-        return;
-      }
-
-      const { data: adminRecord } = await supabase
-        .from('admins')
-        .select('admin_level')
-        .eq('member_id', member.id)
-        .maybeSingle();
-      authLog('Background verify: admins query done', verifyStart);
-
-      const newLevel: AdminLevel = adminRecord?.admin_level as AdminLevel ?? null;
-
-      // Update if different from cache
-      if (cached.adminLevel !== newLevel || cached.memberId !== member.id) {
-        authLog(`Background verify: updating cache (${cached.adminLevel} -> ${newLevel})`);
-        setMemberId(member.id);
-        setAdminLevel(newLevel);
-        setCachedData(email, member.id, newLevel);
-      }
-      authLog('Background verify complete', verifyStart);
-    } catch (err) {
-      authLog(`Background verify error: ${err}`);
-    } finally {
-      setPermissionsLoading(false);
-    }
-  }, []);
 
   // Fetch member and admin data with caching
   const fetchUserData = useCallback(async (email: string, isSignIn: boolean, forceRefresh = false) => {
@@ -212,11 +166,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check cache first (skip if forceRefresh or signing in)
     const cached = getCachedData(email);
     if (cached && !isSignIn && !forceRefresh) {
-      authLog('Using cached data - instant', fetchStart);
+      authLog('Using cached data - instant (no background verify)', fetchStart);
       setMemberId(cached.memberId);
       setAdminLevel(cached.adminLevel);
-      // Run background verification (await to keep permissionsLoading accurate)
-      await verifyAndRefreshCache(email, cached);
+      setPermissionsLoading(false);
       return;
     }
 
@@ -284,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setPermissionsLoading(false);
     }
-  }, [trackVisit, prefetchDashboardData, verifyAndRefreshCache]);
+  }, [trackVisit, prefetchDashboardData]);
 
   useEffect(() => {
     const mountTime = Date.now();
@@ -329,13 +282,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               await fetchUserData(session.user.email, true);
             }
           } else {
-            // For other events (TOKEN_REFRESHED, etc.), try cache first
+            // For other events (TOKEN_REFRESHED, etc.), try cache first - no background verify
             const cached = getCachedData(session.user.email);
             if (cached) {
-              authLog('Using cache in onAuthStateChange');
+              authLog('Using cache in onAuthStateChange - no background verify');
               setMemberId(cached.memberId);
               setAdminLevel(cached.adminLevel);
-              verifyAndRefreshCache(session.user.email, cached);
+              setPermissionsLoading(false);
             } else {
               authLog('No cache - fetching in onAuthStateChange');
               await fetchUserData(session.user.email, false);
@@ -365,7 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authLog(`Cache check: ${cached ? 'HIT' : 'MISS'}`);
         
         if (cached) {
-          // Use cache immediately - don't wait for onAuthStateChange
+          // Use cache immediately - don't wait for onAuthStateChange, no background verify
           initialSessionHandled = true;
           setSession(session);
           setUser(session.user);
@@ -373,8 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAdminLevel(cached.adminLevel);
           authLog('Loaded from cache - instant!', mountTime);
           setIsLoading(false);
-          // Background verify
-          verifyAndRefreshCache(session.user.email, cached);
+          setPermissionsLoading(false);
         } else {
           authLog('No cache - waiting for onAuthStateChange');
         }
