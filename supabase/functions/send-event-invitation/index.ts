@@ -13,6 +13,8 @@ interface EventInvitationRequest {
   eventId: string;
   memberIds: string[];
   senderMemberId?: string;
+  customInvitationText?: string;
+  customEmailSignature?: string;
 }
 
 interface Event {
@@ -46,7 +48,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { eventId, memberIds, senderMemberId }: EventInvitationRequest = await req.json();
+    const { eventId, memberIds, senderMemberId, customInvitationText, customEmailSignature }: EventInvitationRequest = await req.json();
 
     // Fetch event details
     const { data: event, error: eventError } = await supabase
@@ -133,11 +135,14 @@ const handler = async (req: Request): Promise<Response> => {
               ${event.description ? `<p><strong>📝 Kuvaus:</strong> ${event.description}</p>` : ""}
             </div>
             
-            ${event.invitation_text ? `
-            <div style="background-color: #edf2f7; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
-              <p style="margin: 0; white-space: pre-wrap;">${event.invitation_text}</p>
-            </div>
-            ` : ""}
+            ${(() => {
+              const invText = customInvitationText !== undefined ? customInvitationText : event.invitation_text;
+              return invText ? `
+              <div style="background-color: #edf2f7; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+                <p style="margin: 0; white-space: pre-wrap;">${invText}</p>
+              </div>
+              ` : "";
+            })()}
             
             ${rsvpUrl ? `
             <div style="text-align: center; margin: 30px 0;">
@@ -154,11 +159,14 @@ const handler = async (req: Request): Promise<Response> => {
             <p>Vahvista osallistumisesi vastaamalla tähän kutsuun.</p>
             `}
             
-            ${event.email_signature ? `
-            <p style="color: #718096; font-size: 14px; margin-top: 40px; white-space: pre-wrap;">
-              ${event.email_signature}
-            </p>
-            ` : ''}
+            ${(() => {
+              const sig = customEmailSignature !== undefined ? customEmailSignature : event.email_signature;
+              return sig ? `
+              <p style="color: #718096; font-size: 14px; margin-top: 40px; white-space: pre-wrap;">
+                ${sig}
+              </p>
+              ` : '';
+            })()}
           </div>
         `;
 
