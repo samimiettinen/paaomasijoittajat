@@ -287,6 +287,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_current_user_member_id: { Args: never; Returns: string }
       is_admin: { Args: { member_phone: string }; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
     }
