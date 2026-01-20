@@ -88,7 +88,7 @@ export function EventCard({ event, participantCount, onClick }: EventCardProps) 
             className="w-full"
           >
             <Download className="h-4 w-4 mr-2" />
-            Lataa kalenteriin (.ics)
+            Lataa .ics kalenteriisi
           </Button>
         </div>
       </CardContent>
