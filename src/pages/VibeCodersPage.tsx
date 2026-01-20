@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Trash2, UserPlus, Shield, Mail, RefreshCw, CheckCircle2, XCircle, KeyRound } from 'lucide-react';
+import { Plus, Search, Trash2, UserPlus, Shield, Mail, RefreshCw, CheckCircle2, XCircle, KeyRound, KeySquare } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -64,6 +64,7 @@ export default function VibeCodersPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [adminToDelete, setAdminToDelete] = useState<AdminWithMember | null>(null);
   const [resendingCredentials, setResendingCredentials] = useState<string | null>(null);
+  const [sendingPasswordReset, setSendingPasswordReset] = useState<string | null>(null);
 
   const [sendingEmail, setSendingEmail] = useState(false);
   
@@ -286,6 +287,34 @@ export default function VibeCodersPage() {
     }
   };
 
+  // Send password reset link function
+  const handleSendPasswordReset = async (admin: AdminWithMember) => {
+    if (!admin.member?.email) {
+      toast.error('Käyttäjällä ei ole sähköpostiosoitetta');
+      return;
+    }
+
+    setSendingPasswordReset(admin.id);
+
+    try {
+      const response = await supabase.functions.invoke('send-password-reset', {
+        body: {
+          email: admin.member.email,
+        },
+      });
+
+      if (response.error) {
+        toast.error(`Palautuslinkin lähetys epäonnistui: ${response.error.message}`);
+      } else {
+        toast.success('Salasanan palautuslinkki lähetetty sähköpostiin');
+      }
+    } catch (error: any) {
+      toast.error(`Palautuslinkin lähetys epäonnistui: ${error.message}`);
+    } finally {
+      setSendingPasswordReset(null);
+    }
+  };
+
   const onSubmit = (data: VibeCoderFormData) => {
     createAdmin.mutate(data);
   };
@@ -450,7 +479,7 @@ export default function VibeCodersPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    {/* Show resend button for users without auth accounts - allow for ANY admin role */}
+                    {/* Show resend credentials button for users without auth accounts */}
                     {admin.member?.email && authStatus[admin.member.email.toLowerCase()] === false && (
                       <TooltipProvider>
                         <Tooltip>
@@ -471,6 +500,31 @@ export default function VibeCodersPage() {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>Lähetä kirjautumistunnukset</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    {/* Show password reset button for users WITH active auth accounts */}
+                    {admin.member?.email && authStatus[admin.member.email.toLowerCase()] === true && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleSendPasswordReset(admin)}
+                              disabled={sendingPasswordReset === admin.id}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+                            >
+                              {sendingPasswordReset === admin.id ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <KeySquare className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Lähetä salasanan palautuslinkki</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
