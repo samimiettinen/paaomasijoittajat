@@ -74,7 +74,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, isLoading }: Ev
       location_city: event.location_city || '',
       status: event.status,
       invitation_text: event.invitation_text || '',
-      email_signature: event.email_signature || 'Ystävällisin terveisin,\nPääomasijoittajat ry',
+      email_signature: event.email_signature || 'Ystävällisin terveisin,\nPääomaomistajien vibe coding society',
     } : {
       title: '',
       description: '',
@@ -86,7 +86,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, isLoading }: Ev
       location_city: '',
       status: 'draft',
       invitation_text: '',
-      email_signature: 'Ystävällisin terveisin,\nPääomasijoittajat ry',
+      email_signature: 'Ystävällisin terveisin,\nPääomaomistajien vibe coding society',
     },
   });
 
@@ -241,7 +241,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, isLoading }: Ev
             <Textarea
               id="email_signature"
               {...register('email_signature')}
-              placeholder="Ystävällisin terveisin,&#10;Pääomasijoittajat ry"
+              placeholder="Ystävällisin terveisin,&#10;Pääomaomistajien vibe coding society"
               rows={3}
             />
             <p className="text-xs text-muted-foreground">
