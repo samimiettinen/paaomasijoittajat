@@ -28,9 +28,9 @@ interface CachedAuthData {
 }
 
 const AUTH_CACHE_KEY = 'auth_member_data';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - trust cached data longer
-const LOADING_TIMEOUT = 10000; // 10 seconds max loading
-const DB_QUERY_TIMEOUT = 8000; // 8 seconds max for DB queries
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours - trust cached data much longer for better UX
+const LOADING_TIMEOUT = 5000; // 5 seconds max loading - faster fallback
+const DB_QUERY_TIMEOUT = 4000; // 4 seconds max for DB queries
 const DEBUG_AUTH = false; // Disable auth performance logging in production
 
 // Performance logging helper
