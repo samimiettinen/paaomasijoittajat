@@ -15,7 +15,7 @@ interface AuthContextType {
   isVibeCoder: boolean;
   adminLevel: AdminLevel;
   memberId: string | null;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshPermissions: () => Promise<void>;
 }
@@ -28,11 +28,17 @@ interface CachedAuthData {
 }
 
 const AUTH_CACHE_KEY = 'auth_member_data';
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours - trust cached data much longer for better UX
+const REMEMBER_ME_KEY = 'remember_me_enabled';
+const CACHE_DURATION_DEFAULT = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_DURATION_REMEMBER = 30 * 24 * 60 * 60 * 1000; // 30 days for "remember me"
 const LOADING_TIMEOUT = 15000; // 15 seconds max loading - more lenient for slow connections
 const DB_QUERY_TIMEOUT = 10000; // 10 seconds max for DB queries - allow more time
 const DEBUG_AUTH = false; // Disable auth performance logging in production
 
+// Get cache duration based on remember me setting
+const getCacheDuration = () => {
+  return localStorage.getItem(REMEMBER_ME_KEY) === 'true' ? CACHE_DURATION_REMEMBER : CACHE_DURATION_DEFAULT;
+};
 // Performance logging helper
 const authLog = (message: string, startTime?: number) => {
   if (!DEBUG_AUTH) return;
@@ -56,11 +62,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Cache helpers
 const getCachedData = (email: string): CachedAuthData | null => {
   try {
-    const cached = sessionStorage.getItem(AUTH_CACHE_KEY);
+    const cached = localStorage.getItem(AUTH_CACHE_KEY);
     if (!cached) return null;
     
     const data: CachedAuthData = JSON.parse(cached);
-    const isValid = data.email === email && (Date.now() - data.timestamp) < CACHE_DURATION;
+    const cacheDuration = getCacheDuration();
+    const isValid = data.email === email && (Date.now() - data.timestamp) < cacheDuration;
     return isValid ? data : null;
   } catch {
     return null;
@@ -70,7 +77,7 @@ const getCachedData = (email: string): CachedAuthData | null => {
 const setCachedData = (email: string, memberId: string | null, adminLevel: AdminLevel) => {
   try {
     const data: CachedAuthData = { email, memberId, adminLevel, timestamp: Date.now() };
-    sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(data));
+    localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(data));
   } catch {
     // Ignore storage errors
   }
@@ -78,7 +85,8 @@ const setCachedData = (email: string, memberId: string | null, adminLevel: Admin
 
 const clearCachedData = () => {
   try {
-    sessionStorage.removeItem(AUTH_CACHE_KEY);
+    localStorage.removeItem(AUTH_CACHE_KEY);
+    localStorage.removeItem(REMEMBER_ME_KEY);
   } catch {
     // Ignore storage errors
   }
@@ -344,14 +352,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchUserData]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, rememberMe = false) => {
     const signInStart = Date.now();
-    authLog('signIn called');
+    authLog(`signIn called (rememberMe=${rememberMe})`);
+    
+    // Save remember me preference
+    localStorage.setItem(REMEMBER_ME_KEY, String(rememberMe));
     
     // Mark that we're handling the sign-in flow
     signInInProgress = true;
     
     try {
+      // Note: Supabase auto-refreshes tokens. For "remember me", we extend the cache duration
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       authLog(`signInWithPassword complete (error=${!!error})`, signInStart);
       
