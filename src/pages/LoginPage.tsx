@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+
+const REMEMBER_ME_KEY = 'remember_me_preference';
 
 const loginSchema = z.object({
   email: z.string().email('Virheellinen sähköpostiosoite'),
@@ -23,8 +26,16 @@ export default function LoginPage() {
   const location = useLocation();
   const { signIn } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    return localStorage.getItem(REMEMBER_ME_KEY) === 'true';
+  });
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+
+  // Save remember me preference
+  useEffect(() => {
+    localStorage.setItem(REMEMBER_ME_KEY, String(rememberMe));
+  }, [rememberMe]);
 
   const {
     register,
@@ -36,7 +47,7 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
-    const { error } = await signIn(data.email, data.password);
+    const { error } = await signIn(data.email, data.password, rememberMe);
     setIsLoading(false);
 
     if (error) {
@@ -89,7 +100,22 @@ export default function LoginPage() {
               />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
+            )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remember-me"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+                disabled={isLoading}
+              />
+              <Label 
+                htmlFor="remember-me" 
+                className="text-sm font-normal cursor-pointer text-muted-foreground"
+              >
+                Muista minut (30 päivää)
+              </Label>
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
