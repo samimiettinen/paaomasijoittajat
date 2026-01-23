@@ -37,9 +37,9 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
   // If admin access is required but user is not admin
   if (requireAdmin && !isAdmin) {
-    // Insiders and vibe_coders get redirected to events (read-only accessible)
+    // Redirect non-admins to main dashboard (which shows InsiderDashboard for insiders)
     if (isInsider || isVibeCoder) {
-      return <Navigate to="/events" replace />;
+      return <Navigate to="/" replace />;
     }
     return <Navigate to="/profile" replace />;
   }
