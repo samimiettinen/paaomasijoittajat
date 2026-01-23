@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "@/pages/Dashboard";
+import InsiderDashboard from "@/pages/InsiderDashboard";
 import MembersPage from "@/pages/MembersPage";
 import MemberDetailPage from "@/pages/MemberDetailPage";
 import EventsPage from "@/pages/EventsPage";
@@ -21,8 +22,15 @@ import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
 import RsvpPage from "@/pages/RsvpPage";
 import NotFound from "./pages/NotFound";
+import { useAuth } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
+
+// Router component to show correct dashboard based on user role
+function DashboardRouter() {
+  const { isAdmin } = useAuth();
+  return isAdmin ? <Dashboard /> : <InsiderDashboard />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -43,10 +51,10 @@ const App = () => (
                 <AppLayout />
               </ProtectedRoute>
             }>
-            {/* Admin-only routes */}
+            {/* Dashboard - different views for admin vs insider */}
             <Route path="/" element={
-              <ProtectedRoute requireAdmin>
-                <Dashboard />
+              <ProtectedRoute>
+                <DashboardRouter />
               </ProtectedRoute>
             } />
             <Route path="/vibe-coders" element={
