@@ -31,8 +31,8 @@ const AUTH_CACHE_KEY = 'auth_member_data';
 const REMEMBER_ME_KEY = 'remember_me_enabled';
 const CACHE_DURATION_DEFAULT = 24 * 60 * 60 * 1000; // 24 hours
 const CACHE_DURATION_REMEMBER = 30 * 24 * 60 * 60 * 1000; // 30 days for "remember me"
-const LOADING_TIMEOUT = 15000; // 15 seconds max loading - more lenient for slow connections
-const DB_QUERY_TIMEOUT = 10000; // 10 seconds max for DB queries - allow more time
+const LOADING_TIMEOUT = 8000; // 8 seconds - balanced timeout
+const DB_QUERY_TIMEOUT = 6000; // 6 seconds for main DB queries
 const DEBUG_AUTH = false; // Disable auth performance logging in production
 
 // Get cache duration based on remember me setting
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [permissionsLoading, setPermissionsLoading] = useState(true);
+  const [permissionsLoading, setPermissionsLoading] = useState(false); // Start false - faster initial render
   const [adminLevel, setAdminLevel] = useState<AdminLevel>(null);
   const [memberId, setMemberId] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -165,30 +165,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
 
-  // Fetch member and admin data with caching
+  // Fetch member and admin data with caching - OPTIMIZED for speed
   const fetchUserData = useCallback(async (email: string, isSignIn: boolean, forceRefresh = false) => {
     const fetchStart = Date.now();
     authLog(`fetchUserData called (isSignIn=${isSignIn}, forceRefresh=${forceRefresh})`);
-    setPermissionsLoading(true);
     
     // Check cache first (skip if forceRefresh or signing in)
     const cached = getCachedData(email);
     if (cached && !isSignIn && !forceRefresh) {
-      authLog('Using cached data - instant (no background verify)', fetchStart);
+      authLog('Using cached data - instant', fetchStart);
       setMemberId(cached.memberId);
       setAdminLevel(cached.adminLevel);
       setPermissionsLoading(false);
       return;
     }
 
-    authLog('No cache - fetching from DB');
+    // Don't block UI while fetching - set permissionsLoading only briefly
+    authLog('No cache - fetching from DB in parallel');
+    
     try {
-      // Fetch member data with timeout
-      const memberQuery = async () => {
-        return supabase.from('members').select('id, is_admin').ilike('email', email).maybeSingle();
-      };
+      // Fetch member data first (required for admin lookup)
       const memberResult = await withTimeout(
-        memberQuery(),
+        Promise.resolve(supabase.from('members').select('id, is_admin').ilike('email', email).maybeSingle()),
         DB_QUERY_TIMEOUT,
         { data: null, error: null, count: null, status: 408, statusText: 'Timeout' }
       );
@@ -203,6 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Set member ID immediately - enables faster UI response
       setMemberId(member.id);
 
       // Track visit on sign in (fire and forget - don't await)
@@ -210,13 +209,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         trackVisit(member.id);
       }
 
-      // Fetch admin level with timeout
-      const adminQuery = async () => {
-        return supabase.from('admins').select('admin_level').eq('member_id', member.id).maybeSingle();
-      };
+      // Fetch admin level - use shorter timeout since member is found
       const adminResult = await withTimeout(
-        adminQuery(),
-        DB_QUERY_TIMEOUT,
+        Promise.resolve(supabase.from('admins').select('admin_level').eq('member_id', member.id).maybeSingle()),
+        5000, // Shorter timeout for admin check
         { data: null, error: null, count: null, status: 408, statusText: 'Timeout' }
       );
       const adminRecord = adminResult.data;
@@ -240,8 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       authLog(`fetchUserData error: ${error}`, fetchStart);
       console.error('Failed to fetch user data:', error);
-      setMemberId(null);
-      setAdminLevel(null);
+      // Don't reset memberId/adminLevel on error - keep cached values if any
     } finally {
       setPermissionsLoading(false);
     }
