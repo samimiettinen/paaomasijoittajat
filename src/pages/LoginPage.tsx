@@ -158,7 +158,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            <p>Ylläpitäjät ja Vibe Coderit voivat kirjautua.</p>
+            <p>Ylläpitäjät, Insiderit ja Vibe Coderit voivat kirjautua.</p>
             <Link to="/signup" className="text-primary hover:underline mt-2 block">
               Eikö sinulla ole tiliä? Rekisteröidy
             </Link>
