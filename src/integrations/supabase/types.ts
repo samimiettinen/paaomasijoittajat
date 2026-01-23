@@ -190,6 +190,60 @@ export type Database = {
           },
         ]
       }
+      event_resources: {
+        Row: {
+          content: string | null
+          created_at: string
+          created_by: string | null
+          event_id: string
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
+          id: string
+          resource_type: string
+          title: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          resource_type: string
+          title: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          resource_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_resources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_resources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           created_at: string
