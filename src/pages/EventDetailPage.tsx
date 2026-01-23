@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { fi } from 'date-fns/locale';
 import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2, Link, Copy, FileText, Eye, Pencil, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import { useEvent, useEventParticipants, useUpdateEvent, useDeleteEvent, useInviteMembers, useUpdateParticipantStatus } from '@/hooks/useEvents';
+import { EventResourcesSection } from '@/components/EventResourcesSection';
 import { useEmailSends } from '@/hooks/useEmailSends';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMembers } from '@/hooks/useMembers';
@@ -325,6 +326,11 @@ export default function EventDetailPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Event Resources */}
+        <div className="lg:col-span-2">
+          <EventResourcesSection eventId={event.id} memberId={memberId} />
+        </div>
 
         <Card>
           <CardHeader>
