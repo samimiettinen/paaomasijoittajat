@@ -3,6 +3,12 @@
  * This prevents stale sessions from causing login loops
  */
 export function clearAllAuthData(projectId: string = 'hldocmfatteumaeaadgc') {
+  const clearedKeys: { localStorage: string[]; sessionStorage: string[]; cookies: string[] } = {
+    localStorage: [],
+    sessionStorage: [],
+    cookies: []
+  };
+
   const authKeys = [
     `sb-${projectId}-auth-token`,
     `sb-${projectId}-auth-token-code-verifier`,
@@ -11,10 +17,13 @@ export function clearAllAuthData(projectId: string = 'hldocmfatteumaeaadgc') {
     'remember_me_preference'
   ];
 
-  // Clear localStorage
+  // Clear localStorage - known keys
   authKeys.forEach(key => {
     try {
-      localStorage.removeItem(key);
+      if (localStorage.getItem(key) !== null) {
+        localStorage.removeItem(key);
+        clearedKeys.localStorage.push(key);
+      }
     } catch (e) {
       // Ignore storage errors
     }
@@ -29,15 +38,23 @@ export function clearAllAuthData(projectId: string = 'hldocmfatteumaeaadgc') {
         keysToRemove.push(key);
       }
     }
-    keysToRemove.forEach(key => localStorage.removeItem(key));
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+      if (!clearedKeys.localStorage.includes(key)) {
+        clearedKeys.localStorage.push(key);
+      }
+    });
   } catch (e) {
     // Ignore
   }
 
-  // Clear sessionStorage
+  // Clear sessionStorage - known keys
   authKeys.forEach(key => {
     try {
-      sessionStorage.removeItem(key);
+      if (sessionStorage.getItem(key) !== null) {
+        sessionStorage.removeItem(key);
+        clearedKeys.sessionStorage.push(key);
+      }
     } catch (e) {
       // Ignore storage errors
     }
@@ -52,7 +69,12 @@ export function clearAllAuthData(projectId: string = 'hldocmfatteumaeaadgc') {
         keysToRemove.push(key);
       }
     }
-    keysToRemove.forEach(key => sessionStorage.removeItem(key));
+    keysToRemove.forEach(key => {
+      sessionStorage.removeItem(key);
+      if (!clearedKeys.sessionStorage.includes(key)) {
+        clearedKeys.sessionStorage.push(key);
+      }
+    });
   } catch (e) {
     // Ignore
   }
@@ -66,11 +88,31 @@ export function clearAllAuthData(projectId: string = 'hldocmfatteumaeaadgc') {
         document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
         // Clear for root path as well
         document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
+        clearedKeys.cookies.push(name);
       }
     });
   } catch (e) {
     // Ignore cookie errors
   }
 
-  console.log('[Auth] All auth data cleared from storage');
+  // Debug logging
+  const totalCleared = clearedKeys.localStorage.length + clearedKeys.sessionStorage.length + clearedKeys.cookies.length;
+  
+  if (totalCleared > 0) {
+    console.log('[Auth] Session data cleared:');
+    if (clearedKeys.localStorage.length > 0) {
+      console.log('  📦 localStorage:', clearedKeys.localStorage);
+    }
+    if (clearedKeys.sessionStorage.length > 0) {
+      console.log('  📦 sessionStorage:', clearedKeys.sessionStorage);
+    }
+    if (clearedKeys.cookies.length > 0) {
+      console.log('  🍪 cookies:', clearedKeys.cookies);
+    }
+    console.log(`  ✅ Total keys cleared: ${totalCleared}`);
+  } else {
+    console.log('[Auth] No stale auth data found to clear');
+  }
+
+  return clearedKeys;
 }
