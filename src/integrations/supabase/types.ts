@@ -389,6 +389,45 @@ export type Database = {
         }
         Relationships: []
       }
+      resource_presenters: {
+        Row: {
+          created_at: string
+          id: string
+          member_id: string
+          resource_id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_id: string
+          resource_id: string
+          role: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_id?: string
+          resource_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_presenters_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_presenters_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "event_resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
