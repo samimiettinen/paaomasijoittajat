@@ -36,7 +36,7 @@ const generatePassword = () => {
 
 const vibeCoderSchema = z.object({
   member_id: z.string().min(1, 'Valitse jäsen'),
-  admin_level: z.enum(['vibe_coder', 'regular', 'super']),
+  admin_level: z.enum(['vibe_coder', 'regular', 'super', 'insider']),
   send_email: z.boolean().default(true),
   auto_create_account: z.boolean().default(true),
   temp_password: z.string().min(8, 'Salasanan tulee olla vähintään 8 merkkiä').optional().or(z.literal('')),
@@ -369,6 +369,8 @@ export default function VibeCodersPage() {
         return <Badge className="bg-purple-600">Super Admin</Badge>;
       case 'regular':
         return <Badge className="bg-blue-600">Admin</Badge>;
+      case 'insider':
+        return <Badge className="bg-emerald-600">Insider</Badge>;
       case 'vibe_coder':
         return <Badge variant="secondary">Vibe Coder</Badge>;
     }
@@ -446,7 +448,7 @@ export default function VibeCodersPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Super Adminit</CardTitle>
@@ -461,6 +463,14 @@ export default function VibeCodersPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{admins.filter(a => a.admin_level === 'regular').length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Insiderit</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{admins.filter(a => a.admin_level === 'insider').length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -514,6 +524,7 @@ export default function VibeCodersPage() {
                     <SelectContent>
                       <SelectItem value="super">Super Admin</SelectItem>
                       <SelectItem value="regular">Admin</SelectItem>
+                      <SelectItem value="insider">Insider</SelectItem>
                       <SelectItem value="vibe_coder">Vibe Coder</SelectItem>
                     </SelectContent>
                   </Select>
@@ -638,6 +649,12 @@ export default function VibeCodersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="insider">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-emerald-600 text-xs">Insider</Badge>
+                      <span className="text-muted-foreground text-xs">- Lukuoikeus jäseniin ja tapahtumiin</span>
+                    </div>
+                  </SelectItem>
                   <SelectItem value="vibe_coder">
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-xs">Vibe Coder</Badge>
