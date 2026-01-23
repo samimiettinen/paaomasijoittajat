@@ -427,7 +427,7 @@ export type Database = {
       }
     }
     Enums: {
-      admin_level: "super" | "regular" | "vibe_coder"
+      admin_level: "super" | "regular" | "vibe_coder" | "insider"
       event_status: "draft" | "published" | "cancelled" | "completed"
       membership_status: "active" | "pending" | "inactive" | "removed"
       participant_status:
@@ -563,7 +563,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      admin_level: ["super", "regular", "vibe_coder"],
+      admin_level: ["super", "regular", "vibe_coder", "insider"],
       event_status: ["draft", "published", "cancelled", "completed"],
       membership_status: ["active", "pending", "inactive", "removed"],
       participant_status: [
