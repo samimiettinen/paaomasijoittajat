@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { clearAllAuthData, validateSession } from '@/lib/clearAuthSession';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,10 +23,48 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn } = useAuth();
+  const { signIn, user, isLoading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const hasCheckedSession = useRef(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+
+  // Clear stale sessions on login page load
+  useEffect(() => {
+    const checkAndClearStaleSession = async () => {
+      if (hasCheckedSession.current || user) return;
+      hasCheckedSession.current = true;
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          const isValid = await validateSession(
+            import.meta.env.VITE_SUPABASE_URL,
+            import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            session.access_token
+          );
+          if (!isValid) {
+            console.log('[Login] Stale session detected, clearing...');
+            clearAllAuthData();
+            await supabase.auth.signOut();
+          }
+        }
+      } catch {
+        clearAllAuthData();
+      }
+    };
+
+    if (!authLoading) {
+      checkAndClearStaleSession();
+    }
+  }, [authLoading, user]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate(from, { replace: true });
+    }
+  }, [user, authLoading, navigate, from]);
 
   const {
     register,

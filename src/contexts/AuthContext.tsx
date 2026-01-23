@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { clearAllAuthData } from '@/lib/clearAuthSession';
 
 type AdminLevel = 'super' | 'regular' | 'vibe_coder' | null;
 
@@ -28,9 +29,9 @@ interface CachedAuthData {
 }
 
 const AUTH_CACHE_KEY = 'auth_member_data';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - trust cached data longer
-const LOADING_TIMEOUT = 10000; // 10 seconds max loading
-const DB_QUERY_TIMEOUT = 8000; // 8 seconds max for DB queries
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const LOADING_TIMEOUT = 4000; // 4 seconds - faster feedback
+const DB_QUERY_TIMEOUT = 3000; // 3 seconds for main DB queries
 const DEBUG_AUTH = false; // Disable auth performance logging in production
 
 // Performance logging helper
@@ -224,11 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAdminLevel(level);
       setCachedData(email, member.id, level);
       authLog(`fetchUserData complete (level=${level})`, fetchStart);
-
-      // Start prefetching dashboard data if user has access
-      if (level === 'super' || level === 'regular') {
-        prefetchDashboardData();
-      }
+      // Prefetch deferred - will happen when user navigates to dashboard
     } catch (error) {
       authLog(`fetchUserData error: ${error}`, fetchStart);
       console.error('Failed to fetch user data:', error);
@@ -382,6 +379,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    clearAllAuthData();
+    clearCachedData();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
