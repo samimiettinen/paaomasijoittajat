@@ -31,6 +31,14 @@ export default function LoginPage() {
   });
   const hasNavigated = useRef(false);
 
+  // Clear stale auth cache on login page load to prevent access issues
+  useEffect(() => {
+    // Only clear if user is not logged in (prevents clearing during redirect)
+    if (!user && !authLoading) {
+      localStorage.removeItem('auth_member_data');
+    }
+  }, [user, authLoading]);
+
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
   // Redirect if already authenticated - only once
