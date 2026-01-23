@@ -3,9 +3,10 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { clearAllAuthData } from '@/lib/clearAuthSession';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,14 +32,31 @@ export default function LoginPage() {
     return localStorage.getItem(REMEMBER_ME_KEY) === 'true';
   });
   const hasNavigated = useRef(false);
+  const hasCleared = useRef(false);
 
-  // Clear stale auth cache on login page load to prevent access issues
+  // Clear ALL auth data when on login page without a user - prevents stale session loops
   useEffect(() => {
-    // Only clear if user is not logged in (prevents clearing during redirect)
-    if (!user && !authLoading) {
-      localStorage.removeItem('auth_member_data');
+    if (!user && !authLoading && !hasCleared.current) {
+      hasCleared.current = true;
+      console.log('[Login] Clearing all stale auth data...');
+      clearAllAuthData();
+      
+      // Force Supabase client to refresh its state
+      supabase.auth.getSession().then(({ data }) => {
+        if (!data.session) {
+          console.log('[Login] Session cleared successfully, ready for fresh login');
+        }
+      });
     }
   }, [user, authLoading]);
+
+  // Manual session clear handler for troubleshooting
+  const handleClearSession = async () => {
+    clearAllAuthData();
+    await supabase.auth.signOut();
+    toast.success('Sessio tyhjennetty');
+    window.location.reload();
+  };
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
@@ -187,6 +205,18 @@ export default function LoginPage() {
             <Link to="/signup" className="text-primary hover:underline mt-2 block">
               Eikö sinulla ole tiliä? Rekisteröidy
             </Link>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-border">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleClearSession}
+              className="w-full text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Tyhjennä vanha sessio
+            </Button>
           </div>
         </CardContent>
       </Card>
