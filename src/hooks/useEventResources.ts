@@ -67,6 +67,38 @@ export function useCreateEventResource() {
   });
 }
 
+export interface UpdateEventResourceData {
+  id: string;
+  event_id: string;
+  title?: string;
+  content?: string;
+}
+
+export function useUpdateEventResource() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, event_id, ...updates }: UpdateEventResourceData) => {
+      const { data, error } = await supabase
+        .from('event_resources')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, event_id };
+    },
+    onSuccess: ({ event_id }) => {
+      queryClient.invalidateQueries({ queryKey: ['event-resources', event_id] });
+      toast.success('Resurssi päivitetty');
+    },
+    onError: (error: Error) => {
+      toast.error(`Virhe resurssin päivittämisessä: ${error.message}`);
+    },
+  });
+}
+
 export function useDeleteEventResource() {
   const queryClient = useQueryClient();
 

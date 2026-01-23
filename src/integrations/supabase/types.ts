@@ -457,6 +457,11 @@ export type Database = {
       is_admin: { Args: { member_phone: string }; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_current_user_insider: { Args: never; Returns: boolean }
+      is_resource_owner: { Args: { resource_uuid: string }; Returns: boolean }
+      is_resource_presenter_or_owner: {
+        Args: { resource_uuid: string }
+        Returns: boolean
+      }
       update_rsvp_by_token: {
         Args: {
           new_early_arrival?: boolean
