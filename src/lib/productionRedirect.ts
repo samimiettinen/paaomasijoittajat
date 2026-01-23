@@ -1,6 +1,12 @@
 /**
  * Production redirect utility
  * Ensures users are always redirected to production URL after authentication
+ * 
+ * NOTE: We do NOT auto-redirect from preview environments because:
+ * 1. Supabase sessions are domain-specific and won't transfer
+ * 2. Preview environments are for testing
+ * 
+ * Instead, we show a warning to users in preview environments.
  */
 
 const PRODUCTION_URL = 'https://paaomaomistajat.lovable.app';
@@ -21,28 +27,9 @@ export function isPreviewEnvironment(): boolean {
   const hostname = window.location.hostname;
   return (
     hostname.includes('localhost') ||
-    hostname.includes('lovable.app') && !hostname.startsWith('paaomaomistajat') ||
+    (hostname.includes('lovable.app') && !hostname.startsWith('paaomaomistajat')) ||
     hostname.includes('lovableproject.com')
   );
-}
-
-/**
- * Redirect to production after successful login if we're in a preview environment
- * @param targetPath - The path to navigate to after redirect (e.g., '/' or '/dashboard')
- * @returns true if redirect was initiated, false if already on production
- */
-export function redirectToProduction(targetPath: string = '/'): boolean {
-  if (isProductionDomain()) {
-    console.log('[Redirect] Already on production domain');
-    return false;
-  }
-
-  const productionTarget = `${PRODUCTION_URL}${targetPath}`;
-  console.log('[Redirect] Redirecting to production:', productionTarget);
-  
-  // Use replace to prevent back-button issues
-  window.location.replace(productionTarget);
-  return true;
 }
 
 /**
@@ -50,4 +37,12 @@ export function redirectToProduction(targetPath: string = '/'): boolean {
  */
 export function getProductionUrl(path: string = '/'): string {
   return `${PRODUCTION_URL}${path}`;
+}
+
+/**
+ * Check if user should be warned about being in preview environment
+ * Returns true if in preview, false if in production
+ */
+export function shouldWarnAboutPreview(): boolean {
+  return isPreviewEnvironment();
 }
