@@ -7,7 +7,7 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { clearAllAuthData } from '@/lib/clearAuthSession';
-import { redirectToProduction, isProductionDomain } from '@/lib/productionRedirect';
+import { isPreviewEnvironment, getProductionUrl } from '@/lib/productionRedirect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -116,17 +116,20 @@ export default function LoginPage() {
       return;
     }
 
-    // Success - show toast and redirect
+    // Success - show toast and navigate
     hasNavigated.current = true;
-    toast.success('Kirjautuminen onnistui!');
     
-    // If we're in a preview environment, redirect to production
-    const wasRedirected = redirectToProduction(from);
-    
-    // If already on production, navigate normally
-    if (!wasRedirected) {
-      navigate(from, { replace: true });
+    // Warn if in preview environment (session won't transfer to production)
+    if (isPreviewEnvironment()) {
+      toast.success('Kirjautuminen onnistui!', {
+        description: `Huom: Olet preview-ympäristössä. Tuotanto: ${getProductionUrl()}`,
+        duration: 5000,
+      });
+    } else {
+      toast.success('Kirjautuminen onnistui!');
     }
+    
+    navigate(from, { replace: true });
   };
 
   return (
