@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,17 +24,29 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, user, isLoading: authLoading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(() => {
     return localStorage.getItem(REMEMBER_ME_KEY) === 'true';
   });
+  const hasNavigated = useRef(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
-  // Save remember me preference
+  // Redirect if already authenticated - only once
   useEffect(() => {
-    localStorage.setItem(REMEMBER_ME_KEY, String(rememberMe));
+    if (user && !authLoading && !hasNavigated.current) {
+      hasNavigated.current = true;
+      navigate(from, { replace: true });
+    }
+  }, [user, authLoading, navigate, from]);
+
+  // Save remember me preference - debounced to avoid re-renders
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      localStorage.setItem(REMEMBER_ME_KEY, String(rememberMe));
+    }, 100);
+    return () => clearTimeout(timeout);
   }, [rememberMe]);
 
   const {
@@ -43,19 +55,26 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    setIsLoading(true);
+    if (isSubmitting) return; // Prevent double-submit
+    setIsSubmitting(true);
+    
     const { error } = await signIn(data.email, data.password, rememberMe);
-    setIsLoading(false);
 
     if (error) {
+      setIsSubmitting(false);
       toast.error('Kirjautuminen epäonnistui. Tarkista sähköposti ja salasana.');
       return;
     }
 
     toast.success('Kirjautuminen onnistui!');
+    hasNavigated.current = true;
     navigate(from, { replace: true });
   };
 
@@ -81,8 +100,9 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="nimi@example.fi"
+                autoComplete="email"
                 {...register('email')}
-                disabled={isLoading}
+                disabled={isSubmitting}
               />
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -95,8 +115,9 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 placeholder="••••••••"
+                autoComplete="current-password"
                 {...register('password')}
-                disabled={isLoading}
+                disabled={isSubmitting}
               />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
@@ -108,7 +129,7 @@ export default function LoginPage() {
                 id="remember-me"
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked === true)}
-                disabled={isLoading}
+                disabled={isSubmitting}
               />
               <Label 
                 htmlFor="remember-me" 
@@ -118,8 +139,8 @@ export default function LoginPage() {
               </Label>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Kirjaudutaan...
