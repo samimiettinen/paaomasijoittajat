@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useEvents, useCreateEvent } from '@/hooks/useEvents';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { EventCard } from '@/components/EventCard';
 import { EventDialog } from '@/components/EventDialog';
@@ -9,6 +10,7 @@ import type { EventFormData } from '@/lib/types';
 
 export default function EventsPage() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { data: events = [] } = useEvents();
   const createEvent = useCreateEvent();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -27,9 +29,11 @@ export default function EventsPage() {
           <h1 className="text-2xl font-bold">Tapahtumat</h1>
           <p className="text-muted-foreground">{events.length} tapahtumaa</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />Luo tapahtuma
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />Luo tapahtuma
+          </Button>
+        )}
       </div>
 
       <div>
@@ -56,7 +60,9 @@ export default function EventsPage() {
         </div>
       )}
 
-      <EventDialog open={dialogOpen} onOpenChange={setDialogOpen} onSave={handleSave} isLoading={createEvent.isPending} />
+      {isAdmin && (
+        <EventDialog open={dialogOpen} onOpenChange={setDialogOpen} onSave={handleSave} isLoading={createEvent.isPending} />
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
-type AdminLevel = 'super' | 'regular' | 'vibe_coder' | null;
+type AdminLevel = 'super' | 'regular' | 'vibe_coder' | 'insider' | null;
 
 interface AuthContextType {
   user: User | null;
@@ -13,6 +13,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isVibeCoder: boolean;
+  isInsider: boolean;
   adminLevel: AdminLevel;
   memberId: string | null;
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: Error | null }>;
@@ -107,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = adminLevel === 'super' || adminLevel === 'regular';
   const isSuperAdmin = adminLevel === 'super';
   const isVibeCoder = adminLevel === 'vibe_coder';
+  const isInsider = adminLevel === 'insider';
 
   // Prefetch dashboard data in parallel
   const prefetchDashboardData = useCallback(() => {
@@ -230,7 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authLog(`fetchUserData complete (level=${level})`, fetchStart);
 
       // Start prefetching dashboard data if user has access
-      if (level === 'super' || level === 'regular') {
+      if (level === 'super' || level === 'regular' || level === 'insider') {
         prefetchDashboardData();
       }
     } catch (error) {
@@ -412,6 +414,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin, 
       isSuperAdmin,
       isVibeCoder,
+      isInsider,
       adminLevel,
       memberId,
       signIn, 

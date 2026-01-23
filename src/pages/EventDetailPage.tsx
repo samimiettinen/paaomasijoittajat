@@ -56,7 +56,7 @@ export default function EventDetailPage() {
   const { data: participants = [], refetch: refetchParticipants } = useEventParticipants(id || '');
   const { data: allMembers = [] } = useMembers();
   const { data: emailSends = [], refetch: refetchEmailSends } = useEmailSends(id || '');
-  const { memberId } = useAuth();
+  const { memberId, isAdmin } = useAuth();
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
   const inviteMembers = useInviteMembers();
@@ -274,12 +274,16 @@ export default function EventDetailPage() {
           <Button variant="outline" size="sm" onClick={() => downloadICS(event)}>
             <Download className="h-4 w-4 mr-2" />Lataa .ics kalenteriisi
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
-            <Edit className="h-4 w-4 mr-2" />Muokkaa
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {isAdmin && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
+                <Edit className="h-4 w-4 mr-2" />Muokkaa
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -329,7 +333,7 @@ export default function EventDetailPage() {
 
         {/* Event Resources */}
         <div className="lg:col-span-2">
-          <EventResourcesSection eventId={event.id} memberId={memberId} />
+          <EventResourcesSection eventId={event.id} memberId={memberId} readOnly={!isAdmin} />
         </div>
 
         <Card>
@@ -366,22 +370,24 @@ export default function EventDetailPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Osallistujalista</CardTitle>
-          <div className="flex gap-2">
-            {participants.length > 0 && (
-              <>
-                <Button variant="outline" onClick={openEmailPreview} disabled={sendingEmails}>
-                  {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
-                  Sähköposti
-                </Button>
-                <Button variant="outline" onClick={() => setWhatsappDialogOpen(true)}>
-                  <MessageSquare className="h-4 w-4 mr-2" />WhatsApp
-                </Button>
-              </>
-            )}
-            <Button onClick={() => setInviteDialogOpen(true)}>
-              <UserPlus className="h-4 w-4 mr-2" />Lisää osallistujalistalle
-            </Button>
-          </div>
+          {isAdmin && (
+            <div className="flex gap-2">
+              {participants.length > 0 && (
+                <>
+                  <Button variant="outline" onClick={openEmailPreview} disabled={sendingEmails}>
+                    {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+                    Sähköposti
+                  </Button>
+                  <Button variant="outline" onClick={() => setWhatsappDialogOpen(true)}>
+                    <MessageSquare className="h-4 w-4 mr-2" />WhatsApp
+                  </Button>
+                </>
+              )}
+              <Button onClick={() => setInviteDialogOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />Lisää osallistujalistalle
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {participants.length === 0 ? (
