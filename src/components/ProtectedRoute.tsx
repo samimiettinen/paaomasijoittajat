@@ -35,11 +35,11 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     return <Navigate to="/login" state={{ from: location, accessDenied: true }} replace />;
   }
 
-  // If admin access is required but user is vibe_coder or insider (read-only)
+  // If admin access is required but user is not admin
   if (requireAdmin && !isAdmin) {
-    // Insiders get redirected to read-only dashboard, vibe_coders to profile
-    if (isInsider) {
-      return <Navigate to="/" replace />;
+    // Insiders and vibe_coders get redirected to events (read-only accessible)
+    if (isInsider || isVibeCoder) {
+      return <Navigate to="/events" replace />;
     }
     return <Navigate to="/profile" replace />;
   }

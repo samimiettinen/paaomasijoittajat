@@ -43,37 +43,22 @@ const App = () => (
                 <AppLayout />
               </ProtectedRoute>
             }>
-              {/* Admin-only routes */}
-              <Route path="/" element={
-                <ProtectedRoute requireAdmin>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/members" element={
-                <ProtectedRoute requireAdmin>
-                  <MembersPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/members/:id" element={
-                <ProtectedRoute requireAdmin>
-                  <MemberDetailPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/events" element={
-                <ProtectedRoute requireAdmin>
-                  <EventsPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/events/:id" element={
-                <ProtectedRoute requireAdmin>
-                  <EventDetailPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/vibe-coders" element={
-                <ProtectedRoute requireAdmin>
-                  <VibeCodersPage />
-                </ProtectedRoute>
-              } />
+            {/* Admin-only routes */}
+            <Route path="/" element={
+              <ProtectedRoute requireAdmin>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/vibe-coders" element={
+              <ProtectedRoute requireAdmin>
+                <VibeCodersPage />
+              </ProtectedRoute>
+            } />
+            {/* Routes accessible to admins and insiders (read-only for insiders) */}
+            <Route path="/members" element={<MembersPage />} />
+            <Route path="/members/:id" element={<MemberDetailPage />} />
+            <Route path="/events" element={<EventsPage />} />
+            <Route path="/events/:id" element={<EventDetailPage />} />
               {/* Pages accessible to all authenticated users */}
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/my-events" element={<MyEventsPage />} />
