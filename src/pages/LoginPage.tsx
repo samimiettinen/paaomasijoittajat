@@ -7,6 +7,7 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { clearAllAuthData } from '@/lib/clearAuthSession';
+import { redirectToProduction, isProductionDomain } from '@/lib/productionRedirect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -115,10 +116,17 @@ export default function LoginPage() {
       return;
     }
 
-    // Success - show toast and navigate only once
+    // Success - show toast and redirect
     hasNavigated.current = true;
     toast.success('Kirjautuminen onnistui!');
-    navigate(from, { replace: true });
+    
+    // If we're in a preview environment, redirect to production
+    const wasRedirected = redirectToProduction(from);
+    
+    // If already on production, navigate normally
+    if (!wasRedirected) {
+      navigate(from, { replace: true });
+    }
   };
 
   return (
