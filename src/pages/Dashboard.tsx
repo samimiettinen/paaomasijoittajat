@@ -28,7 +28,16 @@ export default function Dashboard() {
   });
 
   const activeMembers = members.filter(m => m.membership_status === 'active').length;
-  const upcomingEvents = events.filter(e => new Date(e.event_date) >= new Date() && e.status === 'published');
+  
+  // Fix: Compare dates without time to include today's events
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcomingEvents = events.filter(e => {
+    const eventDate = new Date(e.event_date);
+    eventDate.setHours(0, 0, 0, 0);
+    return eventDate >= today && e.status === 'published';
+  });
+  
   const admins = members.filter(m => m.is_admin).length;
 
   return (
