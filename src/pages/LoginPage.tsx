@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -70,7 +71,7 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    if (isSubmitting) return; // Prevent double-submit
+    if (isSubmitting || hasNavigated.current) return; // Prevent double-submit
     setIsSubmitting(true);
     
     const { error } = await signIn(data.email, data.password, rememberMe);
@@ -81,8 +82,24 @@ export default function LoginPage() {
       return;
     }
 
-    toast.success('Kirjautuminen onnistui!');
+    // Verify the user has access before navigating
+    const email = data.email.toLowerCase();
+    const { data: member } = await supabase
+      .from('members')
+      .select('id')
+      .ilike('email', email)
+      .maybeSingle();
+
+    if (!member) {
+      setIsSubmitting(false);
+      toast.error('Käyttäjää ei löydy jäsenrekisteristä. Ota yhteyttä ylläpitoon.');
+      await supabase.auth.signOut();
+      return;
+    }
+
+    // Success - show toast and navigate only once
     hasNavigated.current = true;
+    toast.success('Kirjautuminen onnistui!');
     navigate(from, { replace: true });
   };
 
