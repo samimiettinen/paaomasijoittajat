@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { FileText, Link2, StickyNote, Plus, Trash2, Upload, ExternalLink, Download, Loader2, Users, User, X } from 'lucide-react';
+import { FileText, Link2, StickyNote, Plus, Trash2, Upload, ExternalLink, Download, Loader2, Users, User, X, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,9 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useEventResources, useCreateEventResource, useDeleteEventResource, uploadEventFile, EventResource } from '@/hooks/useEventResources';
+import { useEventResources, useCreateEventResource, useDeleteEventResource, useUpdateEventResource, uploadEventFile, EventResource } from '@/hooks/useEventResources';
 import { useResourcesPresenters, useAddResourcePresenter, useRemoveResourcePresenter, ResourcePresenter } from '@/hooks/useResourcePresenters';
 import { useMembers } from '@/hooks/useMembers';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { fi } from 'date-fns/locale';
@@ -30,8 +31,10 @@ interface EventResourcesSectionProps {
 export function EventResourcesSection({ eventId, memberId, readOnly = false }: EventResourcesSectionProps) {
   const { data: resources = [], isLoading } = useEventResources(eventId);
   const { data: members = [] } = useMembers();
+  const { memberId: currentMemberId } = useAuth();
   const createResource = useCreateEventResource();
   const deleteResource = useDeleteEventResource();
+  const updateResource = useUpdateEventResource();
   const addPresenter = useAddResourcePresenter();
   const removePresenter = useRemoveResourcePresenter();
 
@@ -51,11 +54,31 @@ export function EventResourcesSection({ eventId, memberId, readOnly = false }: E
   const [presenterRole, setPresenterRole] = useState<'presenter' | 'owner'>('presenter');
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
 
+  // Edit state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [resourceToEdit, setResourceToEdit] = useState<EventResource | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+
   // Form states
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if current user can edit a resource (is presenter/owner)
+  const canEditResource = (resourceId: string) => {
+    if (!currentMemberId) return false;
+    const presenters = presentersByResource[resourceId] || [];
+    return presenters.some(p => p.member_id === currentMemberId);
+  };
+
+  // Check if current user can delete a resource (is owner)
+  const canDeleteResource = (resourceId: string) => {
+    if (!currentMemberId) return false;
+    const presenters = presentersByResource[resourceId] || [];
+    return presenters.some(p => p.member_id === currentMemberId && p.role === 'owner');
+  };
 
   const resetForm = () => {
     setTitle('');
@@ -176,6 +199,29 @@ export function EventResourcesSection({ eventId, memberId, readOnly = false }: E
       id: presenter.id,
       resourceId: selectedResource.id,
     });
+  };
+
+  const openEditDialog = (resource: EventResource) => {
+    setResourceToEdit(resource);
+    setEditTitle(resource.title);
+    setEditContent(resource.content || '');
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateResource = async () => {
+    if (!resourceToEdit || !editTitle.trim()) {
+      toast.error('Otsikko on pakollinen');
+      return;
+    }
+
+    await updateResource.mutateAsync({
+      id: resourceToEdit.id,
+      event_id: eventId,
+      title: editTitle.trim(),
+      content: resourceToEdit.resource_type !== 'file' ? editContent.trim() : undefined,
+    });
+    setEditDialogOpen(false);
+    setResourceToEdit(null);
   };
 
   const formatFileSize = (bytes: number | null) => {
@@ -342,6 +388,44 @@ export function EventResourcesSection({ eventId, memberId, readOnly = false }: E
                           </a>
                         </Button>
                       )}
+                      
+                      {/* Edit button for presenters/owners */}
+                      {canEditResource(resource.id) && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditDialog(resource)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Muokkaa</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      
+                      {/* Delete button for owners */}
+                      {canDeleteResource(resource.id) && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => confirmDelete(resource)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Poista (omistaja)</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      
+                      {/* Admin controls */}
                       {!readOnly && (
                         <>
                           <TooltipProvider>
@@ -358,13 +442,15 @@ export function EventResourcesSection({ eventId, memberId, readOnly = false }: E
                               <TooltipContent>Hallinnoi esittäjiä</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => confirmDelete(resource)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          {!canDeleteResource(resource.id) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => confirmDelete(resource)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                         </>
                       )}
                     </div>
@@ -597,6 +683,79 @@ export function EventResourcesSection({ eventId, memberId, readOnly = false }: E
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Resource Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5" />
+              Muokkaa resurssia
+            </DialogTitle>
+            <DialogDescription>
+              {resourceToEdit?.resource_type === 'file' 
+                ? 'Voit muokata tiedoston otsikkoa.'
+                : 'Muokkaa resurssin tietoja.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Otsikko *</Label>
+              <Input
+                id="edit-title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Resurssin nimi"
+                maxLength={200}
+              />
+            </div>
+
+            {resourceToEdit?.resource_type === 'text' && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-content">Sisältö</Label>
+                <Textarea
+                  id="edit-content"
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  placeholder="Kirjoita muistiinpano..."
+                  rows={5}
+                  maxLength={5000}
+                />
+              </div>
+            )}
+
+            {resourceToEdit?.resource_type === 'url' && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-url">URL-osoite</Label>
+                <Input
+                  id="edit-url"
+                  type="url"
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+            )}
+
+            {resourceToEdit?.resource_type === 'file' && (
+              <p className="text-sm text-muted-foreground">
+                Tiedoston sisältöä ei voi muuttaa. Lataa uusi tiedosto, jos haluat korvata nykyisen.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Peruuta
+            </Button>
+            <Button onClick={handleUpdateResource} disabled={updateResource.isPending}>
+              {updateResource.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Tallenna
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
