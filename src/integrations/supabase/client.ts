@@ -5,6 +5,12 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// Production URL for redirect handling
+const PRODUCTION_URL = 'https://paaomaomistajat.lovable.app';
+
+// Determine if we're on the production domain
+const isProduction = typeof window !== 'undefined' && window.location.origin === PRODUCTION_URL;
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
@@ -13,5 +19,11 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    // Detect session tokens in URL (from OAuth/magic link redirects)
+    detectSessionInUrl: true,
+    // Use PKCE flow for better security
+    flowType: 'pkce',
+    // Debug mode in development only
+    debug: !isProduction && import.meta.env.DEV,
   }
 });

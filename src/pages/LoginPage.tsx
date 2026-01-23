@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Loader2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { clearAllAuthData } from '@/lib/clearAuthSession';
+import { clearAllAuthData, forceSessionReset, validateSession } from '@/lib/clearAuthSession';
 import { isPreviewEnvironment, getProductionUrl } from '@/lib/productionRedirect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,26 +37,50 @@ export default function LoginPage() {
 
   // Clear ALL auth data when on login page without a user - prevents stale session loops
   useEffect(() => {
-    if (!user && !authLoading && !hasCleared.current) {
+    const checkAndClearSession = async () => {
+      if (hasCleared.current) return;
+
+      // If auth is still loading, wait
+      if (authLoading) return;
+
+      // If we have a user, they should be redirected away
+      if (user) return;
+
       hasCleared.current = true;
-      console.log('[Login] Clearing all stale auth data...');
-      clearAllAuthData();
-      
-      // Force Supabase client to refresh its state
-      supabase.auth.getSession().then(({ data }) => {
-        if (!data.session) {
-          console.log('[Login] Session cleared successfully, ready for fresh login');
+      console.log('[Login] Checking for stale auth data...');
+
+      // First check if there's a session that might be stale
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        // There's a session but no user - this means the session is stale or invalid
+        console.log('[Login] Found stale session, validating...');
+        const isValid = await validateSession(supabase);
+
+        if (!isValid) {
+          console.log('[Login] Session is invalid, forcing complete reset...');
+          await forceSessionReset(supabase);
         }
-      });
-    }
+      } else {
+        // No session, but still clear any leftover data
+        console.log('[Login] Clearing any leftover auth data...');
+        clearAllAuthData();
+      }
+
+      console.log('[Login] Ready for fresh login');
+    };
+
+    checkAndClearSession();
   }, [user, authLoading]);
 
   // Manual session clear handler for troubleshooting
   const handleClearSession = async () => {
-    clearAllAuthData();
-    await supabase.auth.signOut();
-    toast.success('Sessio tyhjennetty');
-    window.location.reload();
+    toast.loading('Tyhjennetään sessiota...');
+    await forceSessionReset(supabase);
+    toast.dismiss();
+    toast.success('Sessio tyhjennetty kokonaan');
+    // Hard reload to ensure everything is cleared
+    window.location.href = window.location.origin + '/login';
   };
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
