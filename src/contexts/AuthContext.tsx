@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { clearAllAuthData, validateSession } from '@/lib/clearAuthSession';
 
 type AdminLevel = 'super' | 'regular' | 'vibe_coder' | 'insider' | null;
 
@@ -315,13 +316,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Get initial session - handle immediately if cached
     authLog('Calling getSession()');
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       authLog(`getSession returned (hasSession=${!!session})`, mountTime);
-      
+
       if (session?.user?.email) {
+        // Validate session is actually working
+        const isValid = await validateSession(supabase);
+        if (!isValid) {
+          authLog('Session validation failed - clearing stale data');
+          clearAllAuthData();
+          clearCachedData();
+          await supabase.auth.signOut();
+          setIsLoading(false);
+          return;
+        }
+
         const cached = getCachedData(session.user.email);
         authLog(`Cache check: ${cached ? 'HIT' : 'MISS'}`);
-        
+
         if (cached) {
           // Use cache immediately - don't wait for onAuthStateChange, no background verify
           initialSessionHandled = true;
@@ -391,11 +403,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear all cached data first
+    clearAllAuthData();
+    clearCachedData();
+
+    // Then sign out from Supabase
     await supabase.auth.signOut();
+
+    // Clear state
     setUser(null);
     setSession(null);
     setAdminLevel(null);
     setMemberId(null);
+
+    console.log('[Auth] Sign out complete - all data cleared');
   };
 
   // Manual refresh permissions function
