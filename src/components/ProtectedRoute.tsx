@@ -8,11 +8,11 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { user, isLoading, permissionsLoading, isAdmin, isVibeCoder, memberId } = useAuth();
+  const { user, isLoading, permissionsLoading, isAdmin, isVibeCoder, isInsider, memberId } = useAuth();
   const location = useLocation();
 
   // Allow access if user has any role OR is a registered member (relaxed auth)
-  const hasAccess = isAdmin || isVibeCoder || memberId !== null;
+  const hasAccess = isAdmin || isVibeCoder || isInsider || memberId !== null;
 
   // Show skeleton only during initial loading (max 5 seconds)
   if (isLoading) {
@@ -35,8 +35,12 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     return <Navigate to="/login" state={{ from: location, accessDenied: true }} replace />;
   }
 
-  // If admin access is required but user is only vibe_coder
+  // If admin access is required but user is vibe_coder or insider (read-only)
   if (requireAdmin && !isAdmin) {
+    // Insiders get redirected to read-only dashboard, vibe_coders to profile
+    if (isInsider) {
+      return <Navigate to="/" replace />;
+    }
     return <Navigate to="/profile" replace />;
   }
 

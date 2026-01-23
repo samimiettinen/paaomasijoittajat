@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Upload, Download, MessageCircle, ExternalLink, Eye, Trash2, Pencil, FileSpreadsheet } from 'lucide-react';
 import { useMembers, useCreateMember, useUpdateMember, useDeleteMember, useBulkImportMembers } from '@/hooks/useMembers';
 import { useEvents } from '@/hooks/useEvents';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ const statusLabels: Record<Member['membership_status'], string> = {
 
 export default function MembersPage() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { data: members = [], isLoading } = useMembers();
   const { data: events = [] } = useEvents();
   const createMember = useCreateMember();
@@ -173,17 +175,21 @@ export default function MembersPage() {
           <p className="text-muted-foreground">{members.length} jäsentä</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportCSV}><Download className="h-4 w-4 mr-2" />Vie CSV</Button>
-          <Button variant="outline" size="sm" onClick={handleExportExcel}><FileSpreadsheet className="h-4 w-4 mr-2" />Vie Excel</Button>
-          <label>
-            <Button variant="outline" size="sm" asChild><span><Upload className="h-4 w-4 mr-2" />Tuo CSV</span></Button>
-            <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
-          </label>
-          <label>
-            <Button variant="outline" size="sm" asChild><span><FileSpreadsheet className="h-4 w-4 mr-2" />Tuo Excel</span></Button>
-            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
-          </label>
-          <Button size="sm" onClick={() => { setSelectedMember(null); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />Lisää jäsen</Button>
+          {isAdmin && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleExportCSV}><Download className="h-4 w-4 mr-2" />Vie CSV</Button>
+              <Button variant="outline" size="sm" onClick={handleExportExcel}><FileSpreadsheet className="h-4 w-4 mr-2" />Vie Excel</Button>
+              <label>
+                <Button variant="outline" size="sm" asChild><span><Upload className="h-4 w-4 mr-2" />Tuo CSV</span></Button>
+                <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
+              </label>
+              <label>
+                <Button variant="outline" size="sm" asChild><span><FileSpreadsheet className="h-4 w-4 mr-2" />Tuo Excel</span></Button>
+                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+              </label>
+              <Button size="sm" onClick={() => { setSelectedMember(null); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />Lisää jäsen</Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -215,16 +221,20 @@ export default function MembersPage() {
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => navigate(`/members/${member.id}`)} title="Näytä tiedot"><Eye className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => { setSelectedMember(member); setDialogOpen(true); }} title="Muokkaa"><Pencil className="h-4 w-4" /></Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => { setMemberToDelete(member); setDeleteConfirmOpen(true); }} 
-                      title="Poista"
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {isAdmin && (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => { setSelectedMember(member); setDialogOpen(true); }} title="Muokkaa"><Pencil className="h-4 w-4" /></Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => { setMemberToDelete(member); setDeleteConfirmOpen(true); }} 
+                          title="Poista"
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                     <Button variant="ghost" size="icon" asChild><a href={getWhatsAppLink(member.mobile_phone)} target="_blank" rel="noopener noreferrer" title="WhatsApp"><MessageCircle className="h-4 w-4" /></a></Button>
                     {member.linkedin_url && <Button variant="ghost" size="icon" asChild><a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" title="LinkedIn"><ExternalLink className="h-4 w-4" /></a></Button>}
                   </div>

@@ -17,9 +17,10 @@ import { fi } from 'date-fns/locale';
 interface EventResourcesSectionProps {
   eventId: string;
   memberId?: string;
+  readOnly?: boolean;
 }
 
-export function EventResourcesSection({ eventId, memberId }: EventResourcesSectionProps) {
+export function EventResourcesSection({ eventId, memberId, readOnly = false }: EventResourcesSectionProps) {
   const { data: resources = [], isLoading } = useEventResources(eventId);
   const createResource = useCreateEventResource();
   const deleteResource = useDeleteEventResource();
@@ -172,10 +173,12 @@ export function EventResourcesSection({ eventId, memberId }: EventResourcesSecti
             <FileText className="h-5 w-5" />
             Resurssit
           </CardTitle>
-          <Button size="sm" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Lisää
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => setAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Lisää
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -241,13 +244,15 @@ export function EventResourcesSection({ eventId, memberId }: EventResourcesSecti
                         </a>
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => confirmDelete(resource)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {!readOnly && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => confirmDelete(resource)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
