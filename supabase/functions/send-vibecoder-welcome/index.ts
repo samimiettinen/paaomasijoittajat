@@ -13,12 +13,6 @@ interface WelcomeEmailRequest {
   memberId: string;
   adminLevel: string;
   tempPassword?: string;
-  customContent?: {
-    subject?: string;
-    greeting?: string;
-    introText?: string;
-    signature?: string;
-  };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -31,7 +25,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { memberId, adminLevel, tempPassword, customContent }: WelcomeEmailRequest = await req.json();
+    const { memberId, adminLevel, tempPassword }: WelcomeEmailRequest = await req.json();
 
     // Fetch member details
     const { data: member, error: memberError } = await supabase
@@ -83,24 +77,18 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const baseUrl = "https://paaomaomistajat.lovable.app";
+    const baseUrl = "https://paaomasijoittajat.lovable.app";
     const loginUrl = `${baseUrl}/login`;
     const resetPasswordUrl = `${baseUrl}/reset-password`;
 
     const roleLabel = adminLevel === 'super' ? 'Super Admin' : 
                       adminLevel === 'regular' ? 'Admin' : 'Vibe Coder';
 
-    // Use custom content if provided, otherwise use defaults
-    const emailSubject = customContent?.subject || `Tervetuloa - Käyttöoikeudet myönnetty (${roleLabel})`;
-    const greeting = customContent?.greeting?.replace('{{name}}', member.first_name) || `Tervetuloa, ${member.first_name}!`;
-    const introText = customContent?.introText || 'Sinulle on myönnetty käyttöoikeudet järjestelmään.';
-    const signature = customContent?.signature || 'Ystävällisin terveisin,\nPääomaomistajat';
-
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #1a365d;">${greeting}</h1>
+        <h1 style="color: #1a365d;">Tervetuloa, ${member.first_name}!</h1>
         
-        <p>${introText}</p>
+        <p>Sinulle on myönnetty käyttöoikeudet Pääomasijoittajat ry:n järjestelmään.</p>
         
         <div style="background-color: #f7fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h2 style="color: #2d3748; margin-top: 0;">Käyttäjätietosi</h2>
@@ -133,7 +121,10 @@ const handler = async (req: Request): Promise<Response> => {
           </p>
         </div>
         
-        <p style="color: #718096; font-size: 14px; margin-top: 40px; white-space: pre-wrap;">${signature}</p>
+        <p style="color: #718096; font-size: 14px; margin-top: 40px;">
+          Ystävällisin terveisin,<br>
+          Pääomasijoittajat ry
+        </p>
       </div>
     `;
 
@@ -144,9 +135,9 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Pääomaomistajat <noreply@byte.fi>",
+        from: "Pääomasijoittajat <noreply@byte.fi>",
         to: [member.email],
-        subject: emailSubject,
+        subject: `Tervetuloa - Käyttöoikeudet myönnetty (${roleLabel})`,
         html: emailHtml,
       }),
     });

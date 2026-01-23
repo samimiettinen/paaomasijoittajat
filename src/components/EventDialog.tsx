@@ -33,7 +33,6 @@ const eventSchema = z.object({
   location_city: z.string().optional(),
   status: z.enum(['draft', 'published', 'cancelled', 'completed']),
   invitation_text: z.string().optional(),
-  email_signature: z.string().optional(),
 });
 
 interface EventDialogProps {
@@ -74,7 +73,6 @@ export function EventDialog({ open, onOpenChange, event, onSave, isLoading }: Ev
       location_city: event.location_city || '',
       status: event.status,
       invitation_text: event.invitation_text || '',
-      email_signature: event.email_signature || 'Ystävällisin terveisin,\nPääomaomistajien vibe coding society',
     } : {
       title: '',
       description: '',
@@ -86,7 +84,6 @@ export function EventDialog({ open, onOpenChange, event, onSave, isLoading }: Ev
       location_city: '',
       status: 'draft',
       invitation_text: '',
-      email_signature: 'Ystävällisin terveisin,\nPääomaomistajien vibe coding society',
     },
   });
 
@@ -233,19 +230,6 @@ export function EventDialog({ open, onOpenChange, event, onSave, isLoading }: Ev
             />
             <p className="text-xs text-muted-foreground">
               Tämä teksti lisätään sähköpostikutsuihin tapahtuman tietojen jälkeen.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email_signature">Sähköpostin allekirjoitus</Label>
-            <Textarea
-              id="email_signature"
-              {...register('email_signature')}
-              placeholder="Ystävällisin terveisin,&#10;Pääomaomistajien vibe coding society"
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground">
-              Allekirjoitus näkyy sähköpostikutsun lopussa. Jätä tyhjäksi jos et halua allekirjoitusta.
             </p>
           </div>
 

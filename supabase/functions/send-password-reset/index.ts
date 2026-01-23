@@ -34,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
       type: 'recovery',
       email: email,
       options: {
-        redirectTo: 'https://paaomaomistajat.lovable.app/update-password',
+        redirectTo: 'https://paaomasijoittajat.lovable.app/update-password',
       },
     });
 

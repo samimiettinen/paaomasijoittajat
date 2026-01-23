@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const { user, signOut, isAdmin, isVibeCoder, isInsider, adminLevel, refreshPermissions } = useAuth();
+  const { user, signOut, isAdmin, isVibeCoder, adminLevel, refreshPermissions } = useAuth();
 
   const handleSignOut = async () => {
     await signOut();
@@ -36,19 +36,12 @@ export function AppLayout() {
         { name: 'Tapahtumat', href: '/events', icon: Calendar },
         { name: 'Käyttäjähallinta', href: '/vibe-coders', icon: UserCog },
       ]
-    : isInsider
-    ? [
-        { name: 'Etusivu', href: '/', icon: Home },
-        { name: 'Jäsenet', href: '/members', icon: Users },
-        { name: 'Tapahtumat', href: '/events', icon: Calendar },
-        { name: 'Omat tiedot', href: '/profile', icon: User },
-      ]
     : [
         { name: 'Omat tiedot', href: '/profile', icon: User },
         { name: 'Omat tapahtumat', href: '/my-events', icon: CalendarCheck },
       ];
 
-  const roleLabel = adminLevel === 'super' ? 'Super Admin' : adminLevel === 'regular' ? 'Admin' : adminLevel === 'insider' ? 'Insider' : adminLevel === 'vibe_coder' ? 'Vibe Coder' : '';
+  const roleLabel = adminLevel === 'super' ? 'Super Admin' : adminLevel === 'regular' ? 'Admin' : adminLevel === 'vibe_coder' ? 'Vibe Coder' : '';
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

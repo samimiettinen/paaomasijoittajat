@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fi } from 'date-fns/locale';
-import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2, Link, Copy, FileText, Eye, Pencil, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Download, Edit, Trash2, UserPlus, Users, MessageSquare, Mail, Loader2, Link, Copy, FileText } from 'lucide-react';
 import { useEvent, useEventParticipants, useUpdateEvent, useDeleteEvent, useInviteMembers, useUpdateParticipantStatus } from '@/hooks/useEvents';
-import { EventResourcesSection } from '@/components/EventResourcesSection';
 import { useEmailSends } from '@/hooks/useEmailSends';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMembers } from '@/hooks/useMembers';
@@ -15,9 +14,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { EventDialog } from '@/components/EventDialog';
 import { BulkWhatsAppDialog } from '@/components/BulkWhatsAppDialog';
@@ -56,7 +52,7 @@ export default function EventDetailPage() {
   const { data: participants = [], refetch: refetchParticipants } = useEventParticipants(id || '');
   const { data: allMembers = [] } = useMembers();
   const { data: emailSends = [], refetch: refetchEmailSends } = useEmailSends(id || '');
-  const { memberId, isAdmin } = useAuth();
+  const { memberId } = useAuth();
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
   const inviteMembers = useInviteMembers();
@@ -70,20 +66,6 @@ export default function EventDetailPage() {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
   const [sendingEmails, setSendingEmails] = useState(false);
-  
-  // Email editing state
-  const [editableInvitationText, setEditableInvitationText] = useState('');
-  const [editableEmailSignature, setEditableEmailSignature] = useState('');
-  const [emailViewMode, setEmailViewMode] = useState<'preview' | 'edit'>('preview');
-  
-  // Failed emails tracking
-  interface EmailResult {
-    memberId: string;
-    success: boolean;
-    error?: string;
-  }
-  const [lastEmailResults, setLastEmailResults] = useState<EmailResult[]>([]);
-  const [emailResultsDialogOpen, setEmailResultsDialogOpen] = useState(false);
 
   if (eventLoading || !event) {
     return (
@@ -147,34 +129,14 @@ export default function EventDetailPage() {
     setSendingEmails(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-event-invitation', {
-        body: { 
-          eventId: event.id, 
-          memberIds, 
-          senderMemberId: memberId,
-          customInvitationText: editableInvitationText,
-          customEmailSignature: editableEmailSignature
-        }
+        body: { eventId: event.id, memberIds, senderMemberId: memberId }
       });
 
       if (error) throw error;
 
-      const results: EmailResult[] = data.results || [];
-      setLastEmailResults(results);
-      
-      const successCount = results.filter(r => r.success).length;
-      const failCount = results.filter(r => !r.success).length;
-      
-      if (failCount > 0) {
-        // Show results dialog with failed emails
-        setEmailPreviewOpen(false);
-        setEmailResultsDialogOpen(true);
-        toast.warning(`${successCount} lähetetty, ${failCount} epäonnistui`);
-      } else {
-        toast.success(`Kaikki ${successCount} sähköpostia lähetetty onnistuneesti!`);
-        setSelectedEmailRecipients([]);
-        setEmailPreviewOpen(false);
-      }
-      
+      toast.success(`Sähköpostit lähetetty: ${data.message}`);
+      setSelectedEmailRecipients([]);
+      setEmailPreviewOpen(false);
       // Refresh email sends to show updated history
       refetchEmailSends();
     } catch (error: any) {
@@ -183,21 +145,6 @@ export default function EventDetailPage() {
     } finally {
       setSendingEmails(false);
     }
-  };
-
-  const handleRetryFailedEmails = () => {
-    const failedMemberIds = lastEmailResults
-      .filter(r => !r.success)
-      .map(r => r.memberId);
-    
-    if (failedMemberIds.length > 0) {
-      setEmailResultsDialogOpen(false);
-      handleSendEmails(failedMemberIds);
-    }
-  };
-
-  const getMemberById = (memberId: string) => {
-    return participants.find(p => p.member_id === memberId)?.member;
   };
 
   // Helper to check if member has received email
@@ -229,10 +176,6 @@ export default function EventDetailPage() {
       .filter(p => p.member?.email)
       .map(p => p.member_id);
     setSelectedEmailRecipients(participantsWithEmail);
-    // Initialize editable fields from event data
-    setEditableInvitationText(event?.invitation_text || '');
-    setEditableEmailSignature(event?.email_signature || 'Ystävällisin terveisin,\nPääomaomistajien vibe coding society');
-    setEmailViewMode('preview');
     setEmailPreviewOpen(true);
   };
 
@@ -274,16 +217,12 @@ export default function EventDetailPage() {
           <Button variant="outline" size="sm" onClick={() => downloadICS(event)}>
             <Download className="h-4 w-4 mr-2" />Lataa .ics kalenteriisi
           </Button>
-          {isAdmin && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
-                <Edit className="h-4 w-4 mr-2" />Muokkaa
-              </Button>
-              <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </>
-          )}
+          <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />Muokkaa
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -331,11 +270,6 @@ export default function EventDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Event Resources */}
-        <div className="lg:col-span-2">
-          <EventResourcesSection eventId={event.id} memberId={memberId} readOnly={!isAdmin} />
-        </div>
-
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -370,24 +304,22 @@ export default function EventDetailPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Osallistujalista</CardTitle>
-          {isAdmin && (
-            <div className="flex gap-2">
-              {participants.length > 0 && (
-                <>
-                  <Button variant="outline" onClick={openEmailPreview} disabled={sendingEmails}>
-                    {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
-                    Sähköposti
-                  </Button>
-                  <Button variant="outline" onClick={() => setWhatsappDialogOpen(true)}>
-                    <MessageSquare className="h-4 w-4 mr-2" />WhatsApp
-                  </Button>
-                </>
-              )}
-              <Button onClick={() => setInviteDialogOpen(true)}>
-                <UserPlus className="h-4 w-4 mr-2" />Lisää osallistujalistalle
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            {participants.length > 0 && (
+              <>
+                <Button variant="outline" onClick={openEmailPreview} disabled={sendingEmails}>
+                  {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+                  Sähköposti
+                </Button>
+                <Button variant="outline" onClick={() => setWhatsappDialogOpen(true)}>
+                  <MessageSquare className="h-4 w-4 mr-2" />WhatsApp
+                </Button>
+              </>
+            )}
+            <Button onClick={() => setInviteDialogOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />Lisää osallistujalistalle
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {participants.length === 0 ? (
@@ -550,11 +482,11 @@ export default function EventDetailPage() {
 
       {/* Email Preview Dialog */}
       <Dialog open={emailPreviewOpen} onOpenChange={setEmailPreviewOpen}>
-        <DialogContent className="max-w-4xl h-[85vh] flex flex-col overflow-hidden">
+        <DialogContent className="max-w-3xl h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Sähköpostikutsut</DialogTitle>
             <DialogDescription>
-              Valitse vastaanottajat, muokkaa sisältöä ja esikatsele sähköposti ennen lähettämistä.
+              Valitse vastaanottajat ja tarkista sähköpostin sisältö ennen lähettämistä.
             </DialogDescription>
           </DialogHeader>
           
@@ -573,7 +505,7 @@ export default function EventDetailPage() {
                   </Button>
                 </div>
               </div>
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              <div className="space-y-2">
                 {participants.map((participant) => {
                   const hasEmail = !!participant.member?.email;
                   const lastSendDate = getLastEmailSendDate(participant.member_id);
@@ -617,118 +549,50 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            {/* Email Content Tabs */}
-            <Tabs value={emailViewMode} onValueChange={(v) => setEmailViewMode(v as 'preview' | 'edit')} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="preview" className="flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  Esikatselu
-                </TabsTrigger>
-                <TabsTrigger value="edit" className="flex items-center gap-2">
-                  <Pencil className="h-4 w-4" />
-                  Muokkaa sisältöä
-                </TabsTrigger>
-              </TabsList>
+            {/* Email Preview */}
+            <div className="border rounded-lg p-6 bg-card space-y-4">
+              <div className="border-b pb-4">
+                <p className="text-sm text-muted-foreground">Aihe:</p>
+                <p className="font-medium">Kutsu: {event.title}</p>
+              </div>
               
-              {/* Edit Tab */}
-              <TabsContent value="edit" className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-invitation-text">Kutsuteksti</Label>
-                  <Textarea
-                    id="edit-invitation-text"
-                    value={editableInvitationText}
-                    onChange={(e) => setEditableInvitationText(e.target.value)}
-                    placeholder="Kirjoita mukautettu kutsuteksti..."
-                    rows={6}
-                    className="resize-none"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Tämä teksti näkyy sähköpostin kutsutekstiosiossa.
-                  </p>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Olet saanut kutsun tapahtumaan!</h3>
+                <h2 className="text-xl font-bold text-primary">{event.title}</h2>
+                
+                <div className="bg-secondary/50 p-4 rounded-lg space-y-2">
+                  <p><strong>📅 Päivämäärä:</strong> {format(new Date(event.event_date), 'd.M.yyyy', { locale: fi })}</p>
+                  <p><strong>🕐 Aika:</strong> {event.start_time.slice(0, 5)} - {event.end_time.slice(0, 5)}</p>
+                  {(event.location_name || event.location_address || event.location_city) && (
+                    <p><strong>📍 Paikka:</strong> {[event.location_name, event.location_address, event.location_city].filter(Boolean).join(', ')}</p>
+                  )}
+                  {event.description && <p><strong>📝 Kuvaus:</strong> {event.description}</p>}
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-email-signature">Allekirjoitus</Label>
-                  <Textarea
-                    id="edit-email-signature"
-                    value={editableEmailSignature}
-                    onChange={(e) => setEditableEmailSignature(e.target.value)}
-                    placeholder="Ystävällisin terveisin,&#10;Pääomaomistajien vibe coding society"
-                    rows={3}
-                    className="resize-none"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Allekirjoitus näkyy sähköpostin lopussa.
-                  </p>
-                </div>
-                
-                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Muokkaukset vaikuttavat vain tähän lähetykseen, eivätkä muuta tapahtuman tietoja pysyvästi.
-                  </p>
-                </div>
-              </TabsContent>
-              
-              {/* Preview Tab */}
-              <TabsContent value="preview" className="mt-4">
-                <div className="border rounded-lg p-6 bg-card space-y-4">
-                  <div className="border-b pb-4">
-                    <p className="text-sm text-muted-foreground">Aihe:</p>
-                    <p className="font-medium">Kutsu: {event.title}</p>
-                  </div>
-                  
-                  {/* Email HTML Preview - matches the actual email template */}
-                  <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: '0 auto' }}>
-                    <h1 style={{ color: '#1a365d' }}>Hei [Etunimi]!</h1>
-                    
-                    <p>Olet saanut kutsun tapahtumaan:</p>
-                    
-                    <div style={{ backgroundColor: '#f7fafc', padding: '20px', borderRadius: '8px', margin: '20px 0' }}>
-                      <h2 style={{ color: '#2d3748', marginTop: 0 }}>{event.title}</h2>
-                      
-                      <p><strong>📅 Päivämäärä:</strong> {format(new Date(event.event_date), 'EEEE d. MMMM yyyy', { locale: fi })}</p>
-                      <p><strong>🕐 Aika:</strong> {event.start_time.slice(0, 5)} - {event.end_time.slice(0, 5)}</p>
-                      {(event.location_name || event.location_address || event.location_city) && (
-                        <p><strong>📍 Paikka:</strong> {[event.location_name, event.location_address, event.location_city].filter(Boolean).join(', ')}</p>
-                      )}
-                      {event.description && <p><strong>📝 Kuvaus:</strong> {event.description}</p>}
-                    </div>
-                    
-                    {editableInvitationText && (
-                      <div style={{ backgroundColor: '#edf2f7', padding: '16px', borderRadius: '8px', margin: '20px 0', borderLeft: '4px solid #2563eb' }}>
-                        <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{editableInvitationText}</p>
-                      </div>
-                    )}
-                    
-                    <div style={{ textAlign: 'center', margin: '30px 0' }}>
-                      <span style={{ display: 'inline-block', backgroundColor: '#2563eb', color: 'white', padding: '14px 28px', borderRadius: '8px', fontWeight: 'bold' }}>
-                        Ilmoittaudu tapahtumaan
-                      </span>
-                    </div>
-                    
-                    <p style={{ textAlign: 'center', color: '#718096', fontSize: '14px' }}>
-                      Tai kopioi linkki selaimeen: [Henkilökohtainen RSVP-linkki]
-                    </p>
-                    
-                    {editableEmailSignature && (
-                      <p style={{ color: '#718096', fontSize: '14px', marginTop: '40px', whiteSpace: 'pre-wrap' }}>
-                        {editableEmailSignature}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                
-                {!editableInvitationText && (
-                  <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mt-4">
-                    <FileText className="h-4 w-4 text-amber-600" />
-                    <p className="text-sm text-amber-700 dark:text-amber-400">
-                      Vinkki: Siirry "Muokkaa sisältöä" -välilehdelle lisätäksesi kutsutekstin.
-                    </p>
+                {event.invitation_text && (
+                  <div className="bg-secondary/50 p-4 rounded-lg border-l-4 border-primary">
+                    <p className="text-sm font-medium mb-2">Kutsuteksti:</p>
+                    <p className="whitespace-pre-wrap">{event.invitation_text}</p>
                   </div>
                 )}
-              </TabsContent>
-            </Tabs>
+                
+                <div className="text-center py-4">
+                  <div className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium">
+                    Vastaa kutsuun
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">(Painike vie henkilökohtaiselle RSVP-sivulle)</p>
+                </div>
+              </div>
+            </div>
+            
+            {!event.invitation_text && (
+              <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                <FileText className="h-4 w-4 text-amber-600" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  Vinkki: Voit lisätä mukautetun kutsutekstin muokkaamalla tapahtumaa.
+                </p>
+              </div>
+            )}
           </div>
           
           <DialogFooter className="flex-shrink-0 gap-2 pt-4 border-t">
@@ -736,105 +600,15 @@ export default function EventDetailPage() {
               Peruuta
             </Button>
             <Button 
-              onClick={() => handleSendEmails(selectedEmailRecipients)}
+              onClick={() => {
+                setEmailPreviewOpen(false);
+                handleSendEmails(selectedEmailRecipients);
+              }}
               disabled={sendingEmails || selectedEmailRecipients.length === 0}
             >
               {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
               Lähetä {selectedEmailRecipients.length} sähköpostia
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Email Results Dialog */}
-      <Dialog open={emailResultsDialogOpen} onOpenChange={setEmailResultsDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Lähetystulokset
-            </DialogTitle>
-            <DialogDescription>
-              {lastEmailResults.filter(r => r.success).length} onnistui, {lastEmailResults.filter(r => !r.success).length} epäonnistui
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 max-h-[400px] overflow-y-auto">
-            {/* Failed emails section */}
-            {lastEmailResults.filter(r => !r.success).length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-medium text-destructive flex items-center gap-2">
-                  <XCircle className="h-4 w-4" />
-                  Epäonnistuneet ({lastEmailResults.filter(r => !r.success).length})
-                </h4>
-                <div className="space-y-2">
-                  {lastEmailResults.filter(r => !r.success).map((result) => {
-                    const member = getMemberById(result.memberId);
-                    return (
-                      <div key={result.memberId} className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                        <XCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">
-                            {member?.first_name} {member?.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {member?.email}
-                          </p>
-                          {result.error && (
-                            <p className="text-xs text-destructive mt-1">
-                              {result.error}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            
-            {/* Successful emails section */}
-            {lastEmailResults.filter(r => r.success).length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-medium text-green-600 flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  Onnistuneet ({lastEmailResults.filter(r => r.success).length})
-                </h4>
-                <div className="space-y-1">
-                  {lastEmailResults.filter(r => r.success).map((result) => {
-                    const member = getMemberById(result.memberId);
-                    return (
-                      <div key={result.memberId} className="flex items-center gap-3 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-                        <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {member?.first_name} {member?.last_name}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {member?.email}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEmailResultsDialogOpen(false)}>
-              Sulje
-            </Button>
-            {lastEmailResults.filter(r => !r.success).length > 0 && (
-              <Button onClick={handleRetryFailedEmails} disabled={sendingEmails}>
-                {sendingEmails ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                )}
-                Lähetä epäonnistuneet uudelleen ({lastEmailResults.filter(r => !r.success).length})
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

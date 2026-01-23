@@ -20,12 +20,12 @@ const defaultTemplate = `Hei {first_name}!
 Olet kutsuttu tapahtumaan. Vahvistathan osallistumisesi vastaamalla tähän viestiin.
 
 Ystävällisin terveisin,
-Pääomaomistajien Vibe Coding Society`;
+Pääomasijoittajien Vibe Coding Society`;
 
 export function BulkWhatsAppDialog({ open, onOpenChange, members, eventTitle }: BulkWhatsAppDialogProps) {
   const [messageTemplate, setMessageTemplate] = useState(
     eventTitle 
-      ? `Hei {first_name}!\n\nOlet kutsuttu tapahtumaan "${eventTitle}". Vahvistathan osallistumisesi vastaamalla tähän viestiin.\n\nYstävällisin terveisin,\nPääomaomistajien Vibe Coding Society`
+      ? `Hei {first_name}!\n\nOlet kutsuttu tapahtumaan "${eventTitle}". Vahvistathan osallistumisesi vastaamalla tähän viestiin.\n\nYstävällisin terveisin,\nPääomasijoittajien Vibe Coding Society`
       : defaultTemplate
   );
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);

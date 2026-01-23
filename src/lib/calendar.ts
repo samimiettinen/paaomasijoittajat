@@ -16,7 +16,7 @@ export function generateICS(event: Event): string {
   const icsContent = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Pääomaomistajien vibe coding society//FI',
+    'PRODID:-//Pääomasijoittajien vibe coding society//FI',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
@@ -25,7 +25,7 @@ export function generateICS(event: Event): string {
     `SUMMARY:${event.title}`,
     event.description ? `DESCRIPTION:${event.description.replace(/\n/g, '\\n')}` : '',
     location ? `LOCATION:${location}` : '',
-    `UID:${event.id}@paaomaomistajat.fi`,
+    `UID:${event.id}@paomasijoittajat.fi`,
     `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
     'END:VEVENT',
     'END:VCALENDAR',

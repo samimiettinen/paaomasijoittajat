@@ -37,7 +37,6 @@ export interface Event {
   status: EventStatus;
   created_by: string | null;
   invitation_text: string | null;
-  email_signature: string | null;
 }
 
 export interface EventParticipant {
@@ -87,5 +86,4 @@ export interface EventFormData {
   location_city?: string;
   status: EventStatus;
   invitation_text?: string;
-  email_signature?: string;
 }

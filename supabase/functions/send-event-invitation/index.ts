@@ -13,8 +13,6 @@ interface EventInvitationRequest {
   eventId: string;
   memberIds: string[];
   senderMemberId?: string;
-  customInvitationText?: string;
-  customEmailSignature?: string;
 }
 
 interface Event {
@@ -28,7 +26,6 @@ interface Event {
   location_address: string | null;
   location_city: string | null;
   invitation_text: string | null;
-  email_signature: string | null;
 }
 
 interface Member {
@@ -48,7 +45,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { eventId, memberIds, senderMemberId, customInvitationText, customEmailSignature }: EventInvitationRequest = await req.json();
+    const { eventId, memberIds, senderMemberId }: EventInvitationRequest = await req.json();
 
     // Fetch event details
     const { data: event, error: eventError } = await supabase
@@ -91,22 +88,11 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Get the base URL for RSVP links
-    const baseUrl = "https://paaomaomistajat.lovable.app";
+    const baseUrl = "https://paaomasijoittajat.lovable.app";
 
     const results: { memberId: string; success: boolean; error?: string }[] = [];
 
-    // Helper function to add delay between emails to avoid rate limiting
-    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-    for (let i = 0; i < (members as Member[]).length; i++) {
-      const member = (members as Member[])[i];
-      
-      // Add delay between emails to respect Resend rate limits (2/second on free tier)
-      // Wait 600ms between each email to stay under the limit
-      if (i > 0) {
-        await sleep(600);
-      }
-
+    for (const member of members as Member[]) {
       if (!member.email) {
         results.push({
           memberId: member.id,
@@ -116,129 +102,97 @@ const handler = async (req: Request): Promise<Response> => {
         continue;
       }
 
-      // Retry logic for rate-limited requests
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (retryCount <= maxRetries) {
-        try {
-          const eventDate = new Date(event.event_date).toLocaleDateString("fi-FI", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          });
+      try {
+        const eventDate = new Date(event.event_date).toLocaleDateString("fi-FI", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
 
-          const location = [event.location_name, event.location_address, event.location_city]
-            .filter(Boolean)
-            .join(", ");
+        const location = [event.location_name, event.location_address, event.location_city]
+          .filter(Boolean)
+          .join(", ");
 
-          const invitationToken = tokenMap.get(member.id);
-          const rsvpUrl = invitationToken ? `${baseUrl}/rsvp?token=${invitationToken}` : null;
+        const invitationToken = tokenMap.get(member.id);
+        const rsvpUrl = invitationToken ? `${baseUrl}/rsvp?token=${invitationToken}` : null;
 
-          const emailHtml = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #1a365d;">Hei ${member.first_name}!</h1>
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #1a365d;">Hei ${member.first_name}!</h1>
+            
+            <p>Olet saanut kutsun tapahtumaan:</p>
+            
+            <div style="background-color: #f7fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h2 style="color: #2d3748; margin-top: 0;">${event.title}</h2>
               
-              <p>Olet saanut kutsun tapahtumaan:</p>
-              
-              <div style="background-color: #f7fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h2 style="color: #2d3748; margin-top: 0;">${event.title}</h2>
-                
-                <p><strong>📅 Päivämäärä:</strong> ${eventDate}</p>
-                <p><strong>🕐 Aika:</strong> ${event.start_time} - ${event.end_time}</p>
-                ${location ? `<p><strong>📍 Paikka:</strong> ${location}</p>` : ""}
-                ${event.description ? `<p><strong>📝 Kuvaus:</strong> ${event.description}</p>` : ""}
-              </div>
-              
-              ${(() => {
-                const invText = customInvitationText !== undefined ? customInvitationText : event.invitation_text;
-                return invText ? `
-                <div style="background-color: #edf2f7; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
-                  <p style="margin: 0; white-space: pre-wrap;">${invText}</p>
-                </div>
-                ` : "";
-              })()}
-              
-              ${rsvpUrl ? `
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${rsvpUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                  Ilmoittaudu tapahtumaan
-                </a>
-              </div>
-              
-              <p style="text-align: center; color: #718096; font-size: 14px;">
-                Tai kopioi tämä linkki selaimeen:<br>
-                <a href="${rsvpUrl}" style="color: #2563eb;">${rsvpUrl}</a>
-              </p>
-              ` : `
-              <p>Vahvista osallistumisesi vastaamalla tähän kutsuun.</p>
-              `}
-              
-              ${(() => {
-                const sig = customEmailSignature !== undefined ? customEmailSignature : event.email_signature;
-                return sig ? `
-                <p style="color: #718096; font-size: 14px; margin-top: 40px; white-space: pre-wrap;">
-                  ${sig}
-                </p>
-                ` : '';
-              })()}
+              <p><strong>📅 Päivämäärä:</strong> ${eventDate}</p>
+              <p><strong>🕐 Aika:</strong> ${event.start_time} - ${event.end_time}</p>
+              ${location ? `<p><strong>📍 Paikka:</strong> ${location}</p>` : ""}
+              ${event.description ? `<p><strong>📝 Kuvaus:</strong> ${event.description}</p>` : ""}
             </div>
-          `;
-
-          const res = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${RESEND_API_KEY}`,
-            },
-            body: JSON.stringify({
-              from: "Pääomaomistajat <noreply@byte.fi>",
-              to: [member.email],
-              subject: `Kutsu: ${event.title}`,
-              html: emailHtml,
-            }),
-          });
-
-          if (!res.ok) {
-            const errorData = await res.json();
             
-            // Check if rate limited (429) - retry with exponential backoff
-            if (res.status === 429 && retryCount < maxRetries) {
-              retryCount++;
-              const backoffMs = 1000 * Math.pow(2, retryCount); // 2s, 4s, 8s
-              console.log(`Rate limited for ${member.email}, retry ${retryCount}/${maxRetries} after ${backoffMs}ms`);
-              await sleep(backoffMs);
-              continue;
-            }
+            ${event.invitation_text ? `
+            <div style="background-color: #edf2f7; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+              <p style="margin: 0; white-space: pre-wrap;">${event.invitation_text}</p>
+            </div>
+            ` : ""}
             
-            throw new Error(errorData.message || "Failed to send email");
-          }
+            ${rsvpUrl ? `
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${rsvpUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                Ilmoittaudu tapahtumaan
+              </a>
+            </div>
+            
+            <p style="text-align: center; color: #718096; font-size: 14px;">
+              Tai kopioi tämä linkki selaimeen:<br>
+              <a href="${rsvpUrl}" style="color: #2563eb;">${rsvpUrl}</a>
+            </p>
+            ` : `
+            <p>Vahvista osallistumisesi vastaamalla tähän kutsuun.</p>
+            `}
+          </div>
+        `;
 
-          // Log email send to database
-          const { error: insertError } = await supabase.from("email_sends").insert({
-            event_id: eventId,
-            member_id: member.id,
-            email_address: member.email,
-            sent_by_member_id: senderMemberId || null,
-          });
+        const res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from: "Pääomasijoittajat <noreply@byte.fi>",
+            to: [member.email],
+            subject: `Kutsu: ${event.title}`,
+            html: emailHtml,
+          }),
+        });
 
-          if (insertError) {
-            console.error("Failed to log email send:", insertError);
-          }
-
-          results.push({ memberId: member.id, success: true });
-          break; // Success, exit retry loop
-        } catch (emailError: any) {
-          if (retryCount >= maxRetries) {
-            results.push({
-              memberId: member.id,
-              success: false,
-              error: emailError.message,
-            });
-          }
-          break; // Non-retryable error, exit loop
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || "Failed to send email");
         }
+
+        // Log email send to database
+        const { error: insertError } = await supabase.from("email_sends").insert({
+          event_id: eventId,
+          member_id: member.id,
+          email_address: member.email,
+          sent_by_member_id: senderMemberId || null,
+        });
+
+        if (insertError) {
+          console.error("Failed to log email send:", insertError);
+        }
+
+        results.push({ memberId: member.id, success: true });
+      } catch (emailError: any) {
+        results.push({
+          memberId: member.id,
+          success: false,
+          error: emailError.message,
+        });
       }
     }
 

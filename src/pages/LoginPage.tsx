@@ -1,21 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { clearAllAuthData } from '@/lib/clearAuthSession';
-import { isPreviewEnvironment, getProductionUrl } from '@/lib/productionRedirect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-
-const REMEMBER_ME_KEY = 'remember_me_preference';
 
 const loginSchema = z.object({
   email: z.string().email('Virheellinen sähköpostiosoite'),
@@ -27,55 +21,10 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, user, isLoading: authLoading } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [rememberMe, setRememberMe] = useState(() => {
-    return localStorage.getItem(REMEMBER_ME_KEY) === 'true';
-  });
-  const hasNavigated = useRef(false);
-  const hasCleared = useRef(false);
-
-  // Clear ALL auth data when on login page without a user - prevents stale session loops
-  useEffect(() => {
-    if (!user && !authLoading && !hasCleared.current) {
-      hasCleared.current = true;
-      console.log('[Login] Clearing all stale auth data...');
-      clearAllAuthData();
-      
-      // Force Supabase client to refresh its state
-      supabase.auth.getSession().then(({ data }) => {
-        if (!data.session) {
-          console.log('[Login] Session cleared successfully, ready for fresh login');
-        }
-      });
-    }
-  }, [user, authLoading]);
-
-  // Manual session clear handler for troubleshooting
-  const handleClearSession = async () => {
-    clearAllAuthData();
-    await supabase.auth.signOut();
-    toast.success('Sessio tyhjennetty');
-    window.location.reload();
-  };
+  const { signIn } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
-
-  // Redirect if already authenticated - only once
-  useEffect(() => {
-    if (user && !authLoading && !hasNavigated.current) {
-      hasNavigated.current = true;
-      navigate(from, { replace: true });
-    }
-  }, [user, authLoading, navigate, from]);
-
-  // Save remember me preference - debounced to avoid re-renders
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      localStorage.setItem(REMEMBER_ME_KEY, String(rememberMe));
-    }, 100);
-    return () => clearTimeout(timeout);
-  }, [rememberMe]);
 
   const {
     register,
@@ -83,52 +32,19 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    if (isSubmitting || hasNavigated.current) return; // Prevent double-submit
-    setIsSubmitting(true);
-    
-    const { error } = await signIn(data.email, data.password, rememberMe);
+    setIsLoading(true);
+    const { error } = await signIn(data.email, data.password);
+    setIsLoading(false);
 
     if (error) {
-      setIsSubmitting(false);
       toast.error('Kirjautuminen epäonnistui. Tarkista sähköposti ja salasana.');
       return;
     }
 
-    // Verify the user has access before navigating
-    const email = data.email.toLowerCase();
-    const { data: member } = await supabase
-      .from('members')
-      .select('id')
-      .ilike('email', email)
-      .maybeSingle();
-
-    if (!member) {
-      setIsSubmitting(false);
-      toast.error('Käyttäjää ei löydy jäsenrekisteristä. Ota yhteyttä ylläpitoon.');
-      await supabase.auth.signOut();
-      return;
-    }
-
-    // Success - show toast and navigate
-    hasNavigated.current = true;
-    
-    // Warn if in preview environment (session won't transfer to production)
-    if (isPreviewEnvironment()) {
-      toast.success('Kirjautuminen onnistui!', {
-        description: `Huom: Olet preview-ympäristössä. Tuotanto: ${getProductionUrl()}`,
-        duration: 5000,
-      });
-    } else {
-      toast.success('Kirjautuminen onnistui!');
-    }
-    
+    toast.success('Kirjautuminen onnistui!');
     navigate(from, { replace: true });
   };
 
@@ -143,7 +59,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-bold">Kirjaudu sisään</CardTitle>
           <CardDescription>
-            Pääomaomistajien vibe coding society
+            Pääomasijoittajien vibe coding society
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -154,9 +70,8 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="nimi@example.fi"
-                autoComplete="email"
                 {...register('email')}
-                disabled={isSubmitting}
+                disabled={isLoading}
               />
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -169,32 +84,16 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 placeholder="••••••••"
-                autoComplete="current-password"
                 {...register('password')}
-                disabled={isSubmitting}
+                disabled={isLoading}
               />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
-            )}
+              )}
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="remember-me"
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked === true)}
-                disabled={isSubmitting}
-              />
-              <Label 
-                htmlFor="remember-me" 
-                className="text-sm font-normal cursor-pointer text-muted-foreground"
-              >
-                Muista minut (30 päivää)
-              </Label>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Kirjaudutaan...
@@ -212,22 +111,10 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            <p>Ylläpitäjät, Insiderit ja Vibe Coderit voivat kirjautua.</p>
+            <p>Ylläpitäjät ja Vibe Coderit voivat kirjautua.</p>
             <Link to="/signup" className="text-primary hover:underline mt-2 block">
               Eikö sinulla ole tiliä? Rekisteröidy
             </Link>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-border">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleClearSession}
-              className="w-full text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Tyhjennä vanha sessio
-            </Button>
           </div>
         </CardContent>
       </Card>

@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
-type AdminLevel = 'super' | 'regular' | 'vibe_coder' | 'insider' | null;
+type AdminLevel = 'super' | 'regular' | 'vibe_coder' | null;
 
 interface AuthContextType {
   user: User | null;
@@ -13,10 +13,9 @@ interface AuthContextType {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isVibeCoder: boolean;
-  isInsider: boolean;
   adminLevel: AdminLevel;
   memberId: string | null;
-  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshPermissions: () => Promise<void>;
 }
@@ -29,17 +28,11 @@ interface CachedAuthData {
 }
 
 const AUTH_CACHE_KEY = 'auth_member_data';
-const REMEMBER_ME_KEY = 'remember_me_enabled';
-const CACHE_DURATION_DEFAULT = 24 * 60 * 60 * 1000; // 24 hours
-const CACHE_DURATION_REMEMBER = 30 * 24 * 60 * 60 * 1000; // 30 days for "remember me"
-const LOADING_TIMEOUT = 8000; // 8 seconds - balanced timeout
-const DB_QUERY_TIMEOUT = 6000; // 6 seconds for main DB queries
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - trust cached data longer
+const LOADING_TIMEOUT = 10000; // 10 seconds max loading
+const DB_QUERY_TIMEOUT = 8000; // 8 seconds max for DB queries
 const DEBUG_AUTH = false; // Disable auth performance logging in production
 
-// Get cache duration based on remember me setting
-const getCacheDuration = () => {
-  return localStorage.getItem(REMEMBER_ME_KEY) === 'true' ? CACHE_DURATION_REMEMBER : CACHE_DURATION_DEFAULT;
-};
 // Performance logging helper
 const authLog = (message: string, startTime?: number) => {
   if (!DEBUG_AUTH) return;
@@ -63,12 +56,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Cache helpers
 const getCachedData = (email: string): CachedAuthData | null => {
   try {
-    const cached = localStorage.getItem(AUTH_CACHE_KEY);
+    const cached = sessionStorage.getItem(AUTH_CACHE_KEY);
     if (!cached) return null;
     
     const data: CachedAuthData = JSON.parse(cached);
-    const cacheDuration = getCacheDuration();
-    const isValid = data.email === email && (Date.now() - data.timestamp) < cacheDuration;
+    const isValid = data.email === email && (Date.now() - data.timestamp) < CACHE_DURATION;
     return isValid ? data : null;
   } catch {
     return null;
@@ -78,7 +70,7 @@ const getCachedData = (email: string): CachedAuthData | null => {
 const setCachedData = (email: string, memberId: string | null, adminLevel: AdminLevel) => {
   try {
     const data: CachedAuthData = { email, memberId, adminLevel, timestamp: Date.now() };
-    localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(data));
+    sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(data));
   } catch {
     // Ignore storage errors
   }
@@ -86,8 +78,7 @@ const setCachedData = (email: string, memberId: string | null, adminLevel: Admin
 
 const clearCachedData = () => {
   try {
-    localStorage.removeItem(AUTH_CACHE_KEY);
-    localStorage.removeItem(REMEMBER_ME_KEY);
+    sessionStorage.removeItem(AUTH_CACHE_KEY);
   } catch {
     // Ignore storage errors
   }
@@ -100,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [permissionsLoading, setPermissionsLoading] = useState(false); // Start false - faster initial render
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>(null);
   const [memberId, setMemberId] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -108,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = adminLevel === 'super' || adminLevel === 'regular';
   const isSuperAdmin = adminLevel === 'super';
   const isVibeCoder = adminLevel === 'vibe_coder';
-  const isInsider = adminLevel === 'insider';
 
   // Prefetch dashboard data in parallel
   const prefetchDashboardData = useCallback(() => {
@@ -167,28 +157,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
 
-  // Fetch member and admin data with caching - OPTIMIZED for speed
+  // Fetch member and admin data with caching
   const fetchUserData = useCallback(async (email: string, isSignIn: boolean, forceRefresh = false) => {
     const fetchStart = Date.now();
     authLog(`fetchUserData called (isSignIn=${isSignIn}, forceRefresh=${forceRefresh})`);
+    setPermissionsLoading(true);
     
     // Check cache first (skip if forceRefresh or signing in)
     const cached = getCachedData(email);
     if (cached && !isSignIn && !forceRefresh) {
-      authLog('Using cached data - instant', fetchStart);
+      authLog('Using cached data - instant (no background verify)', fetchStart);
       setMemberId(cached.memberId);
       setAdminLevel(cached.adminLevel);
       setPermissionsLoading(false);
       return;
     }
 
-    // Don't block UI while fetching - set permissionsLoading only briefly
-    authLog('No cache - fetching from DB in parallel');
-    
+    authLog('No cache - fetching from DB');
     try {
-      // Fetch member data first (required for admin lookup)
+      // Fetch member data with timeout
+      const memberQuery = async () => {
+        return supabase.from('members').select('id, is_admin').ilike('email', email).maybeSingle();
+      };
       const memberResult = await withTimeout(
-        Promise.resolve(supabase.from('members').select('id, is_admin').ilike('email', email).maybeSingle()),
+        memberQuery(),
         DB_QUERY_TIMEOUT,
         { data: null, error: null, count: null, status: 408, statusText: 'Timeout' }
       );
@@ -203,7 +195,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Set member ID immediately - enables faster UI response
       setMemberId(member.id);
 
       // Track visit on sign in (fire and forget - don't await)
@@ -211,10 +202,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         trackVisit(member.id);
       }
 
-      // Fetch admin level - use shorter timeout since member is found
+      // Fetch admin level with timeout
+      const adminQuery = async () => {
+        return supabase.from('admins').select('admin_level').eq('member_id', member.id).maybeSingle();
+      };
       const adminResult = await withTimeout(
-        Promise.resolve(supabase.from('admins').select('admin_level').eq('member_id', member.id).maybeSingle()),
-        5000, // Shorter timeout for admin check
+        adminQuery(),
+        DB_QUERY_TIMEOUT,
         { data: null, error: null, count: null, status: 408, statusText: 'Timeout' }
       );
       const adminRecord = adminResult.data;
@@ -232,13 +226,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authLog(`fetchUserData complete (level=${level})`, fetchStart);
 
       // Start prefetching dashboard data if user has access
-      if (level === 'super' || level === 'regular' || level === 'insider') {
+      if (level === 'super' || level === 'regular') {
         prefetchDashboardData();
       }
     } catch (error) {
       authLog(`fetchUserData error: ${error}`, fetchStart);
       console.error('Failed to fetch user data:', error);
-      // Don't reset memberId/adminLevel on error - keep cached values if any
+      setMemberId(null);
+      setAdminLevel(null);
     } finally {
       setPermissionsLoading(false);
     }
@@ -349,18 +344,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchUserData]);
 
-  const signIn = async (email: string, password: string, rememberMe = false) => {
+  const signIn = async (email: string, password: string) => {
     const signInStart = Date.now();
-    authLog(`signIn called (rememberMe=${rememberMe})`);
-    
-    // Save remember me preference
-    localStorage.setItem(REMEMBER_ME_KEY, String(rememberMe));
+    authLog('signIn called');
     
     // Mark that we're handling the sign-in flow
     signInInProgress = true;
     
     try {
-      // Note: Supabase auto-refreshes tokens. For "remember me", we extend the cache duration
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       authLog(`signInWithPassword complete (error=${!!error})`, signInStart);
       
@@ -414,7 +405,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin, 
       isSuperAdmin,
       isVibeCoder,
-      isInsider,
       adminLevel,
       memberId,
       signIn, 

@@ -7,7 +7,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "@/pages/Dashboard";
-import InsiderDashboard from "@/pages/InsiderDashboard";
 import MembersPage from "@/pages/MembersPage";
 import MemberDetailPage from "@/pages/MemberDetailPage";
 import EventsPage from "@/pages/EventsPage";
@@ -22,15 +21,8 @@ import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
 import RsvpPage from "@/pages/RsvpPage";
 import NotFound from "./pages/NotFound";
-import { useAuth } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
-
-// Router component to show correct dashboard based on user role
-function DashboardRouter() {
-  const { isAdmin } = useAuth();
-  return isAdmin ? <Dashboard /> : <InsiderDashboard />;
-}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -51,22 +43,37 @@ const App = () => (
                 <AppLayout />
               </ProtectedRoute>
             }>
-            {/* Dashboard - different views for admin vs insider */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                <DashboardRouter />
-              </ProtectedRoute>
-            } />
-            <Route path="/vibe-coders" element={
-              <ProtectedRoute requireAdmin>
-                <VibeCodersPage />
-              </ProtectedRoute>
-            } />
-            {/* Routes accessible to admins and insiders (read-only for insiders) */}
-            <Route path="/members" element={<MembersPage />} />
-            <Route path="/members/:id" element={<MemberDetailPage />} />
-            <Route path="/events" element={<EventsPage />} />
-            <Route path="/events/:id" element={<EventDetailPage />} />
+              {/* Admin-only routes */}
+              <Route path="/" element={
+                <ProtectedRoute requireAdmin>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/members" element={
+                <ProtectedRoute requireAdmin>
+                  <MembersPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/members/:id" element={
+                <ProtectedRoute requireAdmin>
+                  <MemberDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/events" element={
+                <ProtectedRoute requireAdmin>
+                  <EventsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/events/:id" element={
+                <ProtectedRoute requireAdmin>
+                  <EventDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/vibe-coders" element={
+                <ProtectedRoute requireAdmin>
+                  <VibeCodersPage />
+                </ProtectedRoute>
+              } />
               {/* Pages accessible to all authenticated users */}
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/my-events" element={<MyEventsPage />} />

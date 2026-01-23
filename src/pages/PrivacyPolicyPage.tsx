@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage() {
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold">Tietosuojaseloste</h1>
         <p className="text-muted-foreground">
-          Pääomaomistajat - GDPR-tietosuojaseloste
+          Vibe Coding Society ry - GDPR-tietosuojaseloste
         </p>
         <p className="text-xs text-muted-foreground">
           Päivitetty: {new Date().toLocaleDateString('fi-FI')}
@@ -23,10 +23,9 @@ export default function PrivacyPolicyPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <p><strong>Nimi:</strong> Pääomaomistajat</p>
-          <p><strong>Yhteyshenkilö:</strong> Sami Miettinen</p>
+          <p><strong>Nimi:</strong> Vibe Coding Society ry</p>
           <p><strong>Osoite:</strong> Helsinki, Suomi</p>
-          <p><strong>Sähköposti:</strong> sami.miettinen@dcmcapital.fi</p>
+          <p><strong>Sähköposti:</strong> info@vibecoding.fi</p>
           <p>
             Rekisterinpitäjä vastaa henkilötietojen käsittelystä tämän tietosuojaselosteen 
             mukaisesti ja EU:n yleisen tietosuoja-asetuksen (GDPR) vaatimusten mukaisesti.
@@ -227,7 +226,7 @@ export default function PrivacyPolicyPage() {
           <Separator className="my-4" />
           <p>
             Voit käyttää oikeuksiasi ottamalla yhteyttä rekisterinpitäjään sähköpostitse 
-            osoitteeseen <strong>sami.miettinen@dcmcapital.fi</strong>. Vastaamme pyyntöihin 30 päivän kuluessa.
+            osoitteeseen <strong>info@vibecoding.fi</strong>. Vastaamme pyyntöihin 30 päivän kuluessa.
           </p>
         </CardContent>
       </Card>
@@ -258,7 +257,7 @@ export default function PrivacyPolicyPage() {
 
       <div className="text-center text-xs text-muted-foreground pt-4">
         <p>Tietosuojavaltuutetun toimisto: tietosuoja.fi</p>
-        <p className="mt-1">© {new Date().getFullYear()} Pääomaomistajat</p>
+        <p className="mt-1">© {new Date().getFullYear()} Vibe Coding Society ry</p>
       </div>
     </div>
   );

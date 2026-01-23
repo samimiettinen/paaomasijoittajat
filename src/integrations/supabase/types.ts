@@ -92,56 +92,6 @@ export type Database = {
           },
         ]
       }
-      email_templates: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          greeting: string | null
-          id: string
-          intro_text: string | null
-          invitation_text: string | null
-          name: string
-          signature: string | null
-          subject: string | null
-          template_type: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          greeting?: string | null
-          id?: string
-          intro_text?: string | null
-          invitation_text?: string | null
-          name: string
-          signature?: string | null
-          subject?: string | null
-          template_type: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          greeting?: string | null
-          id?: string
-          intro_text?: string | null
-          invitation_text?: string | null
-          name?: string
-          signature?: string | null
-          subject?: string | null
-          template_type?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "email_templates_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       event_participants: {
         Row: {
           calendar_invite_sent: boolean
@@ -190,66 +140,11 @@ export type Database = {
           },
         ]
       }
-      event_resources: {
-        Row: {
-          content: string | null
-          created_at: string
-          created_by: string | null
-          event_id: string
-          file_name: string | null
-          file_size: number | null
-          file_url: string | null
-          id: string
-          resource_type: string
-          title: string
-        }
-        Insert: {
-          content?: string | null
-          created_at?: string
-          created_by?: string | null
-          event_id: string
-          file_name?: string | null
-          file_size?: number | null
-          file_url?: string | null
-          id?: string
-          resource_type: string
-          title: string
-        }
-        Update: {
-          content?: string | null
-          created_at?: string
-          created_by?: string | null
-          event_id?: string
-          file_name?: string | null
-          file_size?: number | null
-          file_url?: string | null
-          id?: string
-          resource_type?: string
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "event_resources_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_resources_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       events: {
         Row: {
           created_at: string
           created_by: string | null
           description: string | null
-          email_signature: string | null
           end_time: string
           event_date: string
           id: string
@@ -265,7 +160,6 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
-          email_signature?: string | null
           end_time: string
           event_date: string
           id?: string
@@ -281,7 +175,6 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
-          email_signature?: string | null
           end_time?: string
           event_date?: string
           id?: string
@@ -389,90 +282,17 @@ export type Database = {
         }
         Relationships: []
       }
-      resource_presenters: {
-        Row: {
-          created_at: string
-          id: string
-          member_id: string
-          resource_id: string
-          role: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          member_id: string
-          resource_id: string
-          role: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          member_id?: string
-          resource_id?: string
-          role?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "resource_presenters_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "resource_presenters_resource_id_fkey"
-            columns: ["resource_id"]
-            isOneToOne: false
-            referencedRelation: "event_resources"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       get_current_user_member_id: { Args: never; Returns: string }
-      get_member_id_by_token: { Args: { token_value: string }; Returns: string }
-      get_rsvp_by_token: {
-        Args: { token_value: string }
-        Returns: {
-          early_arrival: boolean
-          event_date: string
-          event_description: string
-          event_end_time: string
-          event_id: string
-          event_location_address: string
-          event_location_city: string
-          event_location_name: string
-          event_start_time: string
-          event_title: string
-          member_first_name: string
-          member_last_name: string
-          participant_id: string
-          participant_status: string
-        }[]
-      }
       is_admin: { Args: { member_phone: string }; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
-      is_current_user_insider: { Args: never; Returns: boolean }
-      is_resource_owner: { Args: { resource_uuid: string }; Returns: boolean }
-      is_resource_presenter_or_owner: {
-        Args: { resource_uuid: string }
-        Returns: boolean
-      }
-      update_rsvp_by_token: {
-        Args: {
-          new_early_arrival?: boolean
-          new_status: string
-          token_value: string
-        }
-        Returns: boolean
-      }
     }
     Enums: {
-      admin_level: "super" | "regular" | "vibe_coder" | "insider"
+      admin_level: "super" | "regular" | "vibe_coder"
       event_status: "draft" | "published" | "cancelled" | "completed"
       membership_status: "active" | "pending" | "inactive" | "removed"
       participant_status:
@@ -608,7 +428,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      admin_level: ["super", "regular", "vibe_coder", "insider"],
+      admin_level: ["super", "regular", "vibe_coder"],
       event_status: ["draft", "published", "cancelled", "completed"],
       membership_status: ["active", "pending", "inactive", "removed"],
       participant_status: [
